@@ -1,5 +1,6 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::sync::{Mutex, Arc};
 
 use crate::{ray_tracer::*, Time};
 
@@ -364,10 +365,14 @@ impl Options {
   }
 }
 
-pub fn render_image () {
+pub fn render_image (
+  options: Arc<Mutex<Options>>,
+  image: Arc<Mutex<eframe::epaint::ColorImage>>,
+  frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
+) {
   let start: f64 = Time::now();
 
-  let options = crate::OPTIONS.lock().unwrap().clone();
+  let options = options.lock().unwrap().clone();
 
   let ray_tracer = RayTracer {
     camera: options.camera,
@@ -378,15 +383,15 @@ pub fn render_image () {
     scene: options.scene,
   };
 
-  let mut image = crate::IMAGE.lock().unwrap().clone();
+  let mut new_image = image.lock().unwrap().clone();
 
-  ray_tracer.rs_render(&mut image);
+  ray_tracer.rs_render(&mut new_image);
 
-  let image_global = &mut crate::IMAGE.lock().unwrap();
-  image_global.size = image.size;
-  image_global.pixels = image.pixels;
+  let image_global = &mut image.lock().unwrap();
+  image_global.size = new_image.size;
+  image_global.pixels = new_image.pixels;
 
   let end: f64 = Time::now();
   let frame_time = end - start;
-  crate::FRAME_TIMES.lock().unwrap().add(end, frame_time as f32);
+  frame_times.lock().unwrap().add(end, frame_time as f32);
 }

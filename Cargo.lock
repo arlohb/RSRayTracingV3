@@ -1878,7 +1878,6 @@ dependencies = [
  "bytemuck",
  "eframe",
  "env_logger",
- "once_cell",
  "pollster",
  "rand",
  "rand_distr",

@@ -1,15 +1,25 @@
 use rand_distr::{UnitDisc, Distribution};
 use eframe::{egui, epi};
+use std::sync::{Mutex, Arc};
 use crate::{ray_tracer::*, panels::*, Time};
 
 pub struct App {
   ray_tracer: RayTracer,
   texture: Option<eframe::epaint::TextureHandle>,
   last_time: f64,
+  options: Arc<Mutex<Options>>,
+  image: Arc<Mutex<eframe::epaint::ColorImage>>,
+  frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 }
 
 impl App {
-  pub fn new(width: u32, height: u32) -> Self {
+  pub fn new(
+    width: u32,
+    height: u32,
+    options: Arc<Mutex<Options>>,
+    image: Arc<Mutex<eframe::epaint::ColorImage>>,
+    frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
+  ) -> Self {
     let min_radius: f64 = 3.;
     let max_radius: f64 = 8.;
     let placement_radius = 50.;
@@ -97,6 +107,9 @@ impl App {
       },
       texture: None,
       last_time: Time::now(),
+      options,
+      image,
+      frame_times,
     }
   }
 }
@@ -128,7 +141,7 @@ impl epi::App for App {
     
     let mut has_size_changed = false;
 
-    let fps = match crate::FRAME_TIMES.try_lock() {
+    let fps = match self.frame_times.try_lock() {
       Ok(times) => {
         1000. / times.average().unwrap_or(10.)
       },
@@ -202,7 +215,7 @@ impl epi::App for App {
                 ray_tracer.height = ui.available_height() as u32;
               }
 
-              match crate::IMAGE.try_lock() {
+              match self.image.try_lock() {
                 Ok(image) => {
                   texture.set(eframe::epaint::ImageData::Color(image.clone()));
                 },
@@ -222,7 +235,7 @@ impl epi::App for App {
       }
     });
 
-    match crate::OPTIONS.try_lock() {
+    match self.options.try_lock() {
       Ok(mut options) => {
         options.camera = self.ray_tracer.camera;
         options.rotation = self.ray_tracer.rotation;
