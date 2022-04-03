@@ -1,7 +1,4 @@
-// #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
-#[cfg(target_arch="wasm32")]
-use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{ray_tracer::*, Time};
@@ -367,7 +364,6 @@ impl Options {
   }
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn render_image () {
   let start: f64 = Time::now();
 
