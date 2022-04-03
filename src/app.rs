@@ -160,7 +160,9 @@ impl epi::App for App {
         &ctx.input(),
         ray_tracer,
         delta_time * 1.5,
-        delta_time * 30.,
+        delta_time * 20.,
+        6.,
+        0.4,
       );
 
       if ray_tracer.scene.do_objects_spin {
