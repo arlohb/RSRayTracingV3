@@ -10,5 +10,5 @@ pub mod scene;
 pub use scene::*;
 pub mod mat44;
 pub use mat44::*;
-pub mod ray_tracer;
-pub use ray_tracer::*;
+pub mod renderer;
+pub use renderer::*;

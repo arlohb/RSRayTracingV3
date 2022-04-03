@@ -82,7 +82,7 @@ impl Gpu {
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
       label: None,
       layout: Some(&compute_pipeline_layout),
-      module: &shader,
+      module: shader,
       entry_point: "main",
     });
 
@@ -116,7 +116,7 @@ impl Gpu {
     if buf_future.await.is_ok() {
       let data_raw = &*buf_slice.get_mapped_range();
       let data : &[f32] = bytemuck::cast_slice(data_raw);
-      return [data[0], data[1]];
+      [data[0], data[1]]
     } else {
       panic!("Failed to read buffer");
     }

@@ -9,7 +9,12 @@ pub struct ImagePlane {
   pub right: Vec3,
   pub bottom: Vec3,
   pub top: Vec3,
-  pub center: Vec3,
+}
+
+impl ImagePlane {
+  pub fn center(&self) -> Vec3 {
+    (self.left + self.right) / 2.
+  }
 }
 
 pub struct Hit<'a> {
@@ -18,7 +23,7 @@ pub struct Hit<'a> {
   pub object: &'a Object,
 }
 
-pub struct RayTracer {
+pub struct Renderer {
   pub camera: Vec3,
   pub rotation: Vec3,
   pub fov: f64,
@@ -27,7 +32,7 @@ pub struct RayTracer {
   pub scene: Scene,
 }
 
-impl RayTracer {
+impl Renderer {
   pub fn forward(&self) -> Vec3 {
     Vec3 { x: 0., y: 0., z: 1. }
       .transform_point(Mat44::create_rotation(Axis::X, -self.rotation.x))
@@ -66,7 +71,6 @@ impl RayTracer {
       right: center + (right * half_width),
       bottom: center - (up * half_height),
       top: center + (up * half_height),
-      center,
     }
   }
 
@@ -104,7 +108,7 @@ impl RayTracer {
       let strength = (normal.dot(point_to_light)
         / (normal.length() * point_to_light.length())).clamp(0., 1.);
       
-      let reflection_vector = RayTracer::reflect_ray(point_to_light.normalize(), normal);
+      let reflection_vector = Renderer::reflect_ray(point_to_light.normalize(), normal);
       let camera_vector = camera_pos - point;
 
       let specular = (reflection_vector.dot(camera_vector)
@@ -151,10 +155,7 @@ impl RayTracer {
       };      
     }
 
-    match &hit {
-      Some(h) => Some((h.object, h.point)),
-      None => None,
-    }
+    hit.map(|h| (h.object, h.point))
   }
 
   fn trace_ray(
@@ -162,7 +163,7 @@ impl RayTracer {
     ray: &Ray,
     depth: u32,
   ) -> (f64, f64, f64) {
-    match self.ray_hit(&ray) {
+    match self.ray_hit(ray) {
       Some((object, hit_point)) => {
         let normal = object.geometry.normal_at_point(hit_point);
 
@@ -179,7 +180,7 @@ impl RayTracer {
 
         let reflection_ray = Ray {
           origin: hit_point,
-          direction: RayTracer::reflect_ray(-ray.direction, normal),
+          direction: Renderer::reflect_ray(-ray.direction, normal),
         };
         let reflected_colour = self.trace_ray(&reflection_ray, depth + 1);
 
@@ -195,20 +196,18 @@ impl RayTracer {
 
   fn render_pixel(
     &self,
+    top_left: Vec3,
     x: u32,
     y: u32,
-    top_left: Vec3,
     width_world_space: f64,
     height_world_space: f64,
-    right: Vec3,
-    up: Vec3,
   ) -> (f64, f64, f64) {
     let x_screen_space = (x as f64 + 0.5) / self.width as f64;
     let y_screen_space = (y as f64 + 0.5) / self.height as f64;
 
-    let x_offset = right * (x_screen_space * width_world_space);
+    let x_offset = self.right() * (x_screen_space * width_world_space);
     // mul -1 because it's offset down
-    let y_offset = (-up) * (y_screen_space * height_world_space);
+    let y_offset = -self.up() * (y_screen_space * height_world_space);
 
     let pixel_world_space = top_left + x_offset + y_offset;
 
@@ -230,18 +229,16 @@ impl RayTracer {
     let image_plane = self.get_image_plane(self.height as f64 / self.width as f64);
 
     // working for this in whiteboard
-    let top_left_point = image_plane.left + image_plane.top - image_plane.center;
+    let top_left_point = image_plane.left + image_plane.top - image_plane.center();
 
     let width_world_space = (image_plane.right - image_plane.left).length();
     let height_world_space = (image_plane.top - image_plane.bottom).length();
-    let right = self.right();
-    let up = self.up();
 
     image.pixels.par_iter_mut().enumerate().for_each(|(index, colour)| {
       let y = (index as u32) / (self.width as u32);
       let x = index as u32 % self.width;
 
-      let pixel = self.render_pixel(x, y, top_left_point, width_world_space, height_world_space, right, up);
+      let pixel = self.render_pixel(top_left_point, x, y, width_world_space, height_world_space);
 
       *colour = eframe::epaint::Color32::from_rgb(
         (pixel.0 * 255.) as u8,
@@ -374,7 +371,7 @@ pub fn render_image (
 
   let options = options.lock().unwrap().clone();
 
-  let ray_tracer = RayTracer {
+  let ray_tracer = Renderer {
     camera: options.camera,
     rotation: options.rotation,
     fov: options.fov,

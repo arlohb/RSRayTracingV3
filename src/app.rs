@@ -4,7 +4,7 @@ use std::sync::{Mutex, Arc};
 use crate::{ray_tracer::*, panels::*, Time};
 
 pub struct App {
-  ray_tracer: RayTracer,
+  ray_tracer: Renderer,
   texture: Option<eframe::epaint::TextureHandle>,
   last_time: f64,
   options: Arc<Mutex<Options>>,
@@ -81,7 +81,7 @@ impl App {
     });
   
     Self {
-      ray_tracer: RayTracer {
+      ray_tracer: Renderer {
         camera: Vec3 { x: 5., y: 5., z: 5. },
         rotation: Vec3 { x: 0.7, y: -std::f64::consts::PI / 4., z: 0. },
         fov: 70.,
@@ -155,20 +155,12 @@ impl epi::App for App {
 
     {
       let ray_tracer = &mut self.ray_tracer;
-      
-      let forward = ray_tracer.forward();
-      let right = ray_tracer.right();
-      let up = ray_tracer.up();
 
       crate::movement::move_and_rotate(
         &ctx.input(),
-        &mut ray_tracer.camera,
-        &mut ray_tracer.rotation,
-        forward,
-        right,
-        up,
+        ray_tracer,
         delta_time * 1.5,
-        delta_time * 4.,
+        delta_time * 30.,
       );
 
       if ray_tracer.scene.do_objects_spin {
@@ -181,7 +173,7 @@ impl epi::App for App {
           *position = position.transform_point(Mat44::create_rotation(Axis::Y, theta));
 
           // fix rounding errors?
-          *position = *position * (length / position.length());
+          *position *= length / position.length();
         });
       }
     }
@@ -215,12 +207,9 @@ impl epi::App for App {
                 ray_tracer.height = ui.available_height() as u32;
               }
 
-              match self.image.try_lock() {
-                Ok(image) => {
-                  texture.set(eframe::epaint::ImageData::Color(image.clone()));
-                },
-                Err(_) => (),
-              };
+              if let Ok(image) = self.image.try_lock() {
+                texture.set(eframe::epaint::ImageData::Color(image.clone()));
+              }
 
               ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
             });
@@ -235,16 +224,13 @@ impl epi::App for App {
       }
     });
 
-    match self.options.try_lock() {
-      Ok(mut options) => {
-        options.camera = self.ray_tracer.camera;
-        options.rotation = self.ray_tracer.rotation;
-        options.fov = self.ray_tracer.fov;
-        options.width = self.ray_tracer.width;
-        options.height = self.ray_tracer.height;
-        options.scene = self.ray_tracer.scene.clone()
-      },
-      Err(_) => (),
+    if let Ok(mut options) = self.options.try_lock() {
+      options.camera = self.ray_tracer.camera;
+      options.rotation = self.ray_tracer.rotation;
+      options.fov = self.ray_tracer.fov;
+      options.width = self.ray_tracer.width;
+      options.height = self.ray_tracer.height;
+      options.scene = self.ray_tracer.scene.clone()
     }
 
     ctx.request_repaint();

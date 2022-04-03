@@ -142,7 +142,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   };
 }
 
-pub fn settings_panel (ui: &mut egui::Ui, fps: f32, ray_tracer: &mut RayTracer, has_size_changed: &mut bool) {
+pub fn settings_panel (ui: &mut egui::Ui, fps: f32, ray_tracer: &mut Renderer, has_size_changed: &mut bool) {
   ui.heading("Settings");
 
   // this isn't perfect as I'm not using a fixed width font
