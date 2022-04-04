@@ -63,83 +63,85 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
 
   ui.separator();
 
-  let mut has_removed_object = false;
+  egui::ScrollArea::vertical().show(ui, |ui| {
+    let mut has_removed_object = false;
 
-  for i in 0..scene.objects.len() {
-    let index = if has_removed_object { i - 1 } else { i };
+    for i in 0..scene.objects.len() {
+      let index = if has_removed_object { i - 1 } else { i };
 
-    ui.horizontal(|ui| {
-      ui.label(&scene.objects[index].name);
+      ui.horizontal(|ui| {
+        ui.label(&scene.objects[index].name);
 
-      if ui.add(egui::Button::new("❌")).clicked() {
-        scene.objects.remove(index);
-        has_removed_object = true;
+        if ui.add(egui::Button::new("❌")).clicked() {
+          scene.objects.remove(index);
+          has_removed_object = true;
+        }
+      });
+
+      vec3_widget(ui, "pos", scene.objects[index].geometry.position_as_mut());
+
+      if has_removed_object {
+        continue;
       }
-    });
 
-    vec3_widget(ui, "pos", scene.objects[index].geometry.position_as_mut());
+      let object = &mut scene.objects[index];
 
-    if has_removed_object {
-      continue;
-    }
+      match &mut object.geometry {
+        Geometry::Sphere { center: _, radius } => {
+          ui.horizontal(|ui| {
+            ui.label("radius");
+            ui.add(egui::DragValue::new(radius)
+              .fixed_decimals(1)
+              .speed(0.1));
+          });
+        },
+        Geometry::Plane { center: _, normal, size } => {
+          ui.horizontal(|ui| {
+            ui.label("normal");
+            ui.add(egui::DragValue::new(&mut normal.x)
+              .fixed_decimals(1)
+              .speed(0.1));
+            ui.add(egui::DragValue::new(&mut normal.y)
+              .fixed_decimals(1)
+              .speed(0.1));
+            ui.add(egui::DragValue::new(&mut normal.z)
+              .fixed_decimals(1)
+              .speed(0.1));
+            
+            *normal = normal.normalize();
+          });
 
-    let object = &mut scene.objects[index];
-
-    match &mut object.geometry {
-      Geometry::Sphere { center: _, radius } => {
-        ui.horizontal(|ui| {
-          ui.label("radius");
-          ui.add(egui::DragValue::new(radius)
-            .fixed_decimals(1)
-            .speed(0.1));
-        });
-      },
-      Geometry::Plane { center: _, normal, size } => {
-        ui.horizontal(|ui| {
-          ui.label("normal");
-          ui.add(egui::DragValue::new(&mut normal.x)
-            .fixed_decimals(1)
-            .speed(0.1));
-          ui.add(egui::DragValue::new(&mut normal.y)
-            .fixed_decimals(1)
-            .speed(0.1));
-          ui.add(egui::DragValue::new(&mut normal.z)
-            .fixed_decimals(1)
-            .speed(0.1));
-          
-          *normal = normal.normalize();
-        });
-
-        ui.horizontal(|ui| {
-          ui.label("size");
-          ui.add(egui::DragValue::new(size)
-            .fixed_decimals(1)
-            .speed(0.1));
-        });
+          ui.horizontal(|ui| {
+            ui.label("size");
+            ui.add(egui::DragValue::new(size)
+              .fixed_decimals(1)
+              .speed(0.1));
+          });
+        }
       }
-    }
 
-    ui.horizontal(|ui| {
-      ui.label("col");
+      ui.horizontal(|ui| {
+        ui.label("col");
 
-      let mut colour = [object.material.colour.0 as f32, object.material.colour.1 as f32, object.material.colour.2 as f32];
+        let mut colour = [object.material.colour.0 as f32, object.material.colour.1 as f32, object.material.colour.2 as f32];
 
-      ui.color_edit_button_rgb(&mut colour);
+        ui.color_edit_button_rgb(&mut colour);
 
-      object.material.colour = (colour[0] as f64, colour[1] as f64, colour[2] as f64);
+        object.material.colour = (colour[0] as f64, colour[1] as f64, colour[2] as f64);
 
-      ui.label("spec");
-      ui.add(egui::DragValue::new(&mut object.material.specular)
-        .clamp_range::<f64>(0.0..=1000.));
-      
-      ui.label("met");
-      ui.add(egui::DragValue::new(&mut object.material.metallic)
-        .clamp_range::<f64>(0.0..=1.)
-        .speed(0.1));
-    });
+        ui.label("spec");
+        ui.add(egui::DragValue::new(&mut object.material.specular)
+          .clamp_range::<f64>(0.0..=1000.));
+        
+        ui.label("met");
+        ui.add(egui::DragValue::new(&mut object.material.metallic)
+          .clamp_range::<f64>(0.0..=1.)
+          .speed(0.1));
+      });
 
-    ui.separator();
-  };
+      ui.separator();
+    };
+  });
 }
 
 pub fn settings_panel (ui: &mut egui::Ui, fps: f32, renderer: &mut Renderer, has_size_changed: &mut bool) {
