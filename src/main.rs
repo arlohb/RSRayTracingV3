@@ -24,6 +24,11 @@ impl Time {
 }
 
 fn main() {
+  rayon::ThreadPoolBuilder::new()
+    .num_threads(num_cpus::get())
+    .build_global()
+    .unwrap();
+
   let g_renderer = Arc::new(Mutex::new(Options::new(400, 300)));
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
