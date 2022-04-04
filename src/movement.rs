@@ -25,10 +25,12 @@ pub fn move_and_rotate(
     move_speed
   };
 
-  if input.key_down(Key::W) { camera.position -= camera.forward() * move_speed; }
-  if input.key_down(Key::S) { camera.position += camera.forward() * move_speed; }
-  if input.key_down(Key::D) { camera.position += camera.right() * move_speed; }
-  if input.key_down(Key::A) { camera.position -= camera.right() * move_speed; }
-  if input.key_down(Key::E) { camera.position += camera.up() * move_speed; }
-  if input.key_down(Key::Q) { camera.position -= camera.up() * move_speed; }
+  let (forward, right, up) = camera.get_vectors_fru();
+
+  if input.key_down(Key::W) { camera.position -= forward * move_speed; }
+  if input.key_down(Key::S) { camera.position += forward * move_speed; }
+  if input.key_down(Key::D) { camera.position += right * move_speed; }
+  if input.key_down(Key::A) { camera.position -= right * move_speed; }
+  if input.key_down(Key::E) { camera.position += up * move_speed; }
+  if input.key_down(Key::Q) { camera.position -= up * move_speed; }
 }

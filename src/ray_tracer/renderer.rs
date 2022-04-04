@@ -134,9 +134,7 @@ impl Renderer {
     let height = width * aspect_ratio;
     let half_height = height / 2.;
 
-    let right = self.scene.camera.right();
-    let up = self.scene.camera.up();
-    let forward = self.scene.camera.forward();
+    let (forward, right, up) = self.scene.camera.get_vectors_fru();
 
     // the image plane is 1 unit away from the camera
     // this is - not + because the camera point in the -forward direction
@@ -280,9 +278,11 @@ impl Renderer {
     let x_screen_space = (x as f64 + 0.5) / self.width as f64;
     let y_screen_space = (y as f64 + 0.5) / self.height as f64;
 
-    let x_offset = self.scene.camera.right() * (x_screen_space * width_world_space);
+    let (_, right, up) = self.scene.camera.get_vectors_fru();
+
+    let x_offset = right * (x_screen_space * width_world_space);
     // mul -1 because it's offset down
-    let y_offset = -self.scene.camera.up() * (y_screen_space * height_world_space);
+    let y_offset = -up * (y_screen_space * height_world_space);
 
     let pixel_world_space = top_left + x_offset + y_offset;
 
