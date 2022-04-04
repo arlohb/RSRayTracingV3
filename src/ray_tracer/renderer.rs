@@ -371,7 +371,7 @@ pub fn render_image (
 
   let options = options.lock().unwrap().clone();
 
-  let ray_tracer = Renderer {
+  let renderer = Renderer {
     camera: options.camera,
     rotation: options.rotation,
     fov: options.fov,
@@ -382,7 +382,7 @@ pub fn render_image (
 
   let mut new_image = image.lock().unwrap().clone();
 
-  ray_tracer.rs_render(&mut new_image);
+  renderer.rs_render(&mut new_image);
 
   let image_global = &mut image.lock().unwrap();
   image_global.size = new_image.size;

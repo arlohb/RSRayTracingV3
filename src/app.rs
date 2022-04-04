@@ -4,10 +4,10 @@ use std::sync::{Mutex, Arc};
 use crate::{ray_tracer::*, panels::*, Time};
 
 pub struct App {
-  ray_tracer: Renderer,
+  renderer: Renderer,
   texture: Option<eframe::epaint::TextureHandle>,
   last_time: f64,
-  options: Arc<Mutex<Options>>,
+  g_renderer: Arc<Mutex<Options>>,
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
   frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 }
@@ -81,7 +81,7 @@ impl App {
     });
   
     Self {
-      ray_tracer: Renderer {
+      renderer: Renderer {
         camera: Vec3 { x: 5., y: 5., z: 5. },
         rotation: Vec3 { x: 0.7, y: -std::f64::consts::PI / 4., z: 0. },
         fov: 70.,
@@ -107,7 +107,7 @@ impl App {
       },
       texture: None,
       last_time: Time::now(),
-      options,
+      g_renderer: options,
       image,
       frame_times,
     }
@@ -154,19 +154,23 @@ impl epi::App for App {
     self.last_time = now;
 
     {
-      let ray_tracer = &mut self.ray_tracer;
+      let renderer = &mut self.renderer;
 
       crate::movement::move_and_rotate(
         &ctx.input(),
-        ray_tracer,
+        renderer,
         delta_time * 1.5,
         delta_time * 20.,
         6.,
         0.4,
       );
 
-      if ray_tracer.scene.do_objects_spin {
-        ray_tracer.scene.objects.iter_mut().for_each(|object| {
+      if renderer.scene.do_objects_spin {
+        renderer.scene.objects.iter_mut().for_each(|object| {
+          if !matches!(object.geometry, Geometry::Sphere { .. }) {
+            return;
+          }
+
           let position = object.geometry.position_as_mut();
           let length = position.length();
 
@@ -183,15 +187,15 @@ impl epi::App for App {
     if is_portrait {
       egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
         egui::SidePanel::left("object_panel")
-          .show_inside(ui, |ui| object_panel(ui, &mut self.ray_tracer.scene));
+          .show_inside(ui, |ui| object_panel(ui, &mut self.renderer.scene));
         egui::SidePanel::right("settings_panel")
-          .show_inside(ui, |ui| settings_panel(ui, fps, &mut self.ray_tracer, &mut has_size_changed));
+          .show_inside(ui, |ui| settings_panel(ui, fps, &mut self.renderer, &mut has_size_changed));
       });
     } else {
       egui::SidePanel::right("settings_panel")
-        .show(ctx, |ui| settings_panel(ui, fps, &mut self.ray_tracer, &mut has_size_changed));
+        .show(ctx, |ui| settings_panel(ui, fps, &mut self.renderer, &mut has_size_changed));
       egui::SidePanel::right("object_panel")
-        .show(ctx, |ui| object_panel(ui, &mut self.ray_tracer.scene));
+        .show(ctx, |ui| object_panel(ui, &mut self.renderer.scene));
     }
 
     egui::CentralPanel::default().show(ctx, |ui| {
@@ -201,12 +205,12 @@ impl epi::App for App {
       match texture {
         Some(texture) => {
           egui::Resize::default()
-            .default_size((self.ray_tracer.width as f32, self.ray_tracer.height as f32))
+            .default_size((self.renderer.width as f32, self.renderer.height as f32))
             .show(ui, |ui| {
               if !has_size_changed {
-                let ray_tracer = &mut self.ray_tracer;
-                ray_tracer.width = ui.available_width() as u32;
-                ray_tracer.height = ui.available_height() as u32;
+                let renderer = &mut self.renderer;
+                renderer.width = ui.available_width() as u32;
+                renderer.height = ui.available_height() as u32;
               }
 
               if let Ok(image) = self.image.try_lock() {
@@ -218,7 +222,7 @@ impl epi::App for App {
         },
         None => {
           let image = eframe::epaint::ColorImage::new(
-            [self.ray_tracer.width as usize, self.ray_tracer.height as usize],
+            [self.renderer.width as usize, self.renderer.height as usize],
             eframe::epaint::Color32::BLACK
           );
           self.texture = Some(ctx.load_texture("canvas", image));
@@ -226,13 +230,13 @@ impl epi::App for App {
       }
     });
 
-    if let Ok(mut options) = self.options.try_lock() {
-      options.camera = self.ray_tracer.camera;
-      options.rotation = self.ray_tracer.rotation;
-      options.fov = self.ray_tracer.fov;
-      options.width = self.ray_tracer.width;
-      options.height = self.ray_tracer.height;
-      options.scene = self.ray_tracer.scene.clone()
+    if let Ok(mut options) = self.g_renderer.try_lock() {
+      options.camera = self.renderer.camera;
+      options.rotation = self.renderer.rotation;
+      options.fov = self.renderer.fov;
+      options.width = self.renderer.width;
+      options.height = self.renderer.height;
+      options.scene = self.renderer.scene.clone()
     }
 
     ctx.request_repaint();

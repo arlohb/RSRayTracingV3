@@ -142,7 +142,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   };
 }
 
-pub fn settings_panel (ui: &mut egui::Ui, fps: f32, ray_tracer: &mut Renderer, has_size_changed: &mut bool) {
+pub fn settings_panel (ui: &mut egui::Ui, fps: f32, renderer: &mut Renderer, has_size_changed: &mut bool) {
   ui.heading("Settings");
 
   // this isn't perfect as I'm not using a fixed width font
@@ -153,8 +153,8 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f32, ray_tracer: &mut Renderer, h
 
   ui.horizontal(|ui| {
 
-    let mut new_width = ray_tracer.width;
-    let mut new_height = ray_tracer.height;
+    let mut new_width = renderer.width;
+    let mut new_height = renderer.height;
 
     ui.label("width");
     ui.add(egui::DragValue::new(&mut new_width)
@@ -163,23 +163,23 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f32, ray_tracer: &mut Renderer, h
     ui.add(egui::DragValue::new(&mut new_height)
       .speed(20));
 
-    if new_width != ray_tracer.width || new_height != ray_tracer.height {
+    if new_width != renderer.width || new_height != renderer.height {
       *has_size_changed = true;
-      ray_tracer.width = new_width;
-      ray_tracer.height = new_height;
+      renderer.width = new_width;
+      renderer.height = new_height;
     }
   });
 
   ui.separator();
 
-  vec3_widget(ui, "pos", &mut ray_tracer.camera);
-  vec3_widget(ui, "rot", &mut ray_tracer.rotation);
+  vec3_widget(ui, "pos", &mut renderer.camera);
+  vec3_widget(ui, "rot", &mut renderer.rotation);
 
   ui.separator();
 
   ui.horizontal(|ui| {
     ui.label("bounces");
-    ui.add(egui::DragValue::new(&mut ray_tracer.scene.reflection_limit)
+    ui.add(egui::DragValue::new(&mut renderer.scene.reflection_limit)
       .clamp_range::<u32>(0..=10));
   });
 }
