@@ -22,8 +22,12 @@ impl App {
   ) -> Self {
     let min_radius: f64 = 3.;
     let max_radius: f64 = 8.;
-    let placement_radius = 50.;
-    let random_sphere_count = 100;
+
+    let (placement_radius, random_sphere_count) = if num_cpus::get() > 2 {
+      (50., 100)
+    } else {
+      (20., 10)
+    };
 
     let mut objects: Vec<Object> = vec![];
 

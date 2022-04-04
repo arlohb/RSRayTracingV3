@@ -1878,6 +1878,7 @@ dependencies = [
  "bytemuck",
  "eframe",
  "env_logger",
+ "num_cpus",
  "pollster",
  "rand",
  "rand_distr",
