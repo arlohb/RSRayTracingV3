@@ -174,8 +174,8 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f32, renderer: &mut Renderer, has
 
   ui.separator();
 
-  vec3_widget(ui, "pos", &mut renderer.camera);
-  vec3_widget(ui, "rot", &mut renderer.rotation);
+  vec3_widget(ui, "pos", &mut renderer.scene.camera.position);
+  vec3_widget(ui, "rot", &mut renderer.scene.camera.rotation);
 
   ui.separator();
 

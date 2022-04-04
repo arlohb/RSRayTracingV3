@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
-use crate::ray_tracer::{
-  Light,
-  Object,
-};
+use crate::ray_tracer::*;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Scene {
+  pub camera: Camera,
   pub objects: Vec<Object>,
   pub lights: Vec<Light>,
   pub background_colour: (f64, f64, f64),

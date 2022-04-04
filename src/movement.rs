@@ -1,31 +1,31 @@
 use eframe::egui;
 
-use crate::ray_tracer::Renderer;
+use crate::ray_tracer::Camera;
 
 pub fn move_and_rotate(
   input: &egui::InputState,
-  renderer: &mut Renderer,
+  camera: &mut Camera,
   look_speed: f64,
   move_speed: f64,
   shift_mod: f64,
   ctrl_mod: f64,
 ) {
   if input.key_down(egui::Key::ArrowRight) {
-    renderer.rotation.y += look_speed;
+    camera.rotation.y += look_speed;
   }
   if input.key_down(egui::Key::ArrowLeft) {
-    renderer.rotation.y -= look_speed;
+    camera.rotation.y -= look_speed;
   }
   if input.key_down(egui::Key::ArrowUp) {
-    renderer.rotation.x -= look_speed;
+    camera.rotation.x -= look_speed;
   }
   if input.key_down(egui::Key::ArrowDown) {
-    renderer.rotation.x += look_speed;
+    camera.rotation.x += look_speed;
   }
 
-  renderer.rotation.x = renderer.rotation.x.clamp(-0.5 * std::f64::consts::PI, 0.5 * std::f64::consts::PI);
-  renderer.rotation.y %= 2. * std::f64::consts::PI;
-  renderer.rotation.z = renderer.rotation.z.clamp(-std::f64::consts::PI, std::f64::consts::PI);
+  camera.rotation.x = camera.rotation.x.clamp(-0.5 * std::f64::consts::PI, 0.5 * std::f64::consts::PI);
+  camera.rotation.y %= 2. * std::f64::consts::PI;
+  camera.rotation.z = camera.rotation.z.clamp(-std::f64::consts::PI, std::f64::consts::PI);
 
   let move_speed = if input.modifiers.shift {
     move_speed * shift_mod
@@ -40,21 +40,21 @@ pub fn move_and_rotate(
   };
 
   if input.key_down(egui::Key::W) {
-    renderer.camera -= renderer.forward() * move_speed;
+    camera.position -= camera.forward() * move_speed;
   }
   if input.key_down(egui::Key::S) {
-    renderer.camera += renderer.forward() * move_speed;
+    camera.position += camera.forward() * move_speed;
   }
   if input.key_down(egui::Key::D) {
-    renderer.camera += renderer.right() * move_speed;
+    camera.position += camera.right() * move_speed;
   }
   if input.key_down(egui::Key::A) {
-    renderer.camera -= renderer.right() * move_speed;
+    camera.position -= camera.right() * move_speed;
   }
   if input.key_down(egui::Key::E) {
-    renderer.camera += renderer.up() * move_speed;
+    camera.position += camera.up() * move_speed;
   }
   if input.key_down(egui::Key::Q) {
-    renderer.camera -= renderer.up() * move_speed;
+    camera.position -= camera.up() * move_speed;
   }
 }

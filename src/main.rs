@@ -14,7 +14,7 @@ use std::sync::{Mutex, Arc};
 
 // these can be imported without crate::,
 // but I'm doing this to be consistent with the rest of the code
-use crate::ray_tracer::Options;
+use crate::ray_tracer::Renderer;
 use crate::gpu::Gpu;
 
 fn main() {
@@ -24,7 +24,7 @@ fn main() {
     .build_global()
     .expect("Failed to create thread pool");
 
-  let g_renderer = Arc::new(Mutex::new(Options::new(400, 300)));
+  let renderer = Arc::new(Mutex::new(Renderer::new(400, 300)));
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
 
@@ -37,11 +37,11 @@ fn main() {
   println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
 
   // create the app
-  let app = crate::App::new(400, 300, g_renderer.clone(), image.clone(), frame_times.clone());
+  let app = crate::App::new(renderer.clone(), image.clone(), frame_times.clone());
 
   // create the renderer thread
   std::thread::spawn(move || loop {
-    crate::ray_tracer::render_image(g_renderer.clone(), image.clone(), frame_times.clone());
+    crate::ray_tracer::render_image(renderer.clone(), image.clone(), frame_times.clone());
   });
 
   // run the app in a window

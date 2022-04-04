@@ -1,8 +1,9 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use rand_distr::Distribution;
 use std::sync::{Mutex, Arc};
 
-use crate::{ray_tracer::*, Time};
+use crate::ray_tracer::*;
 
 pub struct ImagePlane {
   pub left: Vec3,
@@ -23,48 +24,123 @@ pub struct Hit<'a> {
   pub object: &'a Object,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Renderer {
-  pub camera: Vec3,
-  pub rotation: Vec3,
-  pub fov: f64,
   pub width: u32,
   pub height: u32,
   pub scene: Scene,
 }
 
 impl Renderer {
-  pub fn forward(&self) -> Vec3 {
-    Vec3 { x: 0., y: 0., z: 1. }
-      .transform_point(Mat44::create_rotation(Axis::X, -self.rotation.x))
-      .transform_point(Mat44::create_rotation(Axis::Y, -self.rotation.y))
-  }
+  pub fn new(width: u32, height: u32) -> Renderer {
+    let min_radius: f64 = 3.;
+    let max_radius: f64 = 8.;
 
-  pub fn right(&self) -> Vec3 {
-    let temp = Vec3 { x: 0., y: 1., z: 0. }
-      .transform_point(Mat44::create_rotation(Axis::Z, -self.rotation.z));
-    (temp * self.forward()).normalize()
-  }
+    let (placement_radius, random_sphere_count) = if num_cpus::get() > 2 {
+      (50., 100)
+    } else {
+      (20., 5)
+    };
 
-  pub fn up(&self) -> Vec3 {
-    (self.forward() * self.right()).normalize()
+    let mut objects: Vec<Object> = vec![];
+
+    for i in 0i32..random_sphere_count {
+      // if it failed 100 times, then there's probably no space left
+      for _ in 0..100 {
+        let radius: f64 = rand::random::<f64>() * (max_radius - min_radius) + min_radius;
+        let [x, y]: [f64; 2] = rand_distr::UnitDisc.sample(&mut rand::thread_rng());
+        let x = x * placement_radius;
+        let y = y * placement_radius;
+        let position = Vec3 { x, y: radius, z: y };
+        
+        // reject spheres that are intersecting others
+        if objects.iter().any(|object| {
+          let other_radius = match object.geometry {
+            Geometry::Sphere { radius, .. } => radius,
+            _ => return false,
+          };
+          let min_dst = radius + other_radius;
+          (*object.geometry.position() - position).length() < min_dst
+        }) {
+          continue;
+        }
+
+        objects.push(Object {
+          name: i.to_string(),
+          material: Material {
+            colour: (rand::random(), rand::random(), rand::random()),
+            // some sort of distribution would be better here
+            specular: rand::random::<f64>() * 1000.,
+            metallic: if rand::random::<f64>() > 0.3 { rand::random() } else { 0. },
+          },
+          geometry: Geometry::Sphere {
+            center: position,
+            radius,
+          },
+        });
+
+        break;
+      }
+    }
+
+    objects.push(Object {
+      name: "plane".to_string(),
+      geometry: Geometry::Plane {
+        center: Vec3 { x: 0., y: 0., z: 0. },
+        normal: Vec3 { x: 0., y: 1., z: 0. },
+        size: 100000.,
+      },
+      material: Material {
+        colour: (0.5, 0.5, 0.5),
+        specular: 10.,
+        metallic: 0.2,
+      },
+    });
+  
+    Renderer {
+      width,
+      height,
+      scene: Scene {
+        camera: Camera {
+          position: Vec3 { x: 5., y: 5., z: 5. },
+          rotation: Vec3 { x: 0.7, y: -std::f64::consts::PI / 4., z: 0. },
+          fov: 70.,
+        },
+        objects,
+        lights: vec![
+          Light::Direction {
+            intensity: (0.4, 0.4, 0.4),
+            direction: Vec3 { x: -1., y: -1.5, z: -0.5 }.normalize(),
+          },
+          Light::Point {
+            intensity: (0.4, 0.4, 0.4),
+            position: Vec3 { x: 0., y: 2., z: 0., },
+          },
+        ],
+        background_colour: (0.5, 0.8, 1.),
+        ambient_light: (0.2, 0.2, 0.2),
+        reflection_limit: 4,
+        do_objects_spin: false,
+      },
+    }
   }
 
   fn get_image_plane(&self, aspect_ratio: f64) -> ImagePlane {
     // working for this is in whiteboard
-    let fov_rad = self.fov * (std::f64::consts::PI / 180.);
+    let fov_rad = self.scene.camera.fov * (std::f64::consts::PI / 180.);
     let width = 2. * f64::tan(fov_rad / 2.);
     let half_width = width / 2.;
 
     let height = width * aspect_ratio;
     let half_height = height / 2.;
 
-    let right = self.right();
-    let up = self.up();
-    let forward = self.forward();
+    let right = self.scene.camera.right();
+    let up = self.scene.camera.up();
+    let forward = self.scene.camera.forward();
 
     // the image plane is 1 unit away from the camera
     // this is - not + because the camera point in the -forward direction
-    let center = self.camera - forward;
+    let center = self.scene.camera.position - forward;
 
     ImagePlane {
       left: center - (right * half_width),
@@ -82,7 +158,6 @@ impl Renderer {
     &self,
     point: Vec3,
     normal: Vec3,
-    camera_pos: Vec3,
     material: &Material,
   ) -> (f64, f64, f64) {
     let mut result = (
@@ -109,7 +184,7 @@ impl Renderer {
         / (normal.length() * point_to_light.length())).clamp(0., 1.);
       
       let reflection_vector = Renderer::reflect_ray(point_to_light.normalize(), normal);
-      let camera_vector = camera_pos - point;
+      let camera_vector = self.scene.camera.position - point;
 
       let specular = (reflection_vector.dot(camera_vector)
         / (reflection_vector.length() * camera_vector.length())).clamp(0., 1.).powf(material.specular);
@@ -167,7 +242,7 @@ impl Renderer {
       Some((object, hit_point)) => {
         let normal = object.geometry.normal_at_point(hit_point);
 
-        let brightness = self.calculate_light(hit_point, normal, self.camera, &object.material);
+        let brightness = self.calculate_light(hit_point, normal, &object.material);
         let local_colour = (
             brightness.0 * object.material.colour.0,
             brightness.1 * object.material.colour.1,
@@ -205,16 +280,16 @@ impl Renderer {
     let x_screen_space = (x as f64 + 0.5) / self.width as f64;
     let y_screen_space = (y as f64 + 0.5) / self.height as f64;
 
-    let x_offset = self.right() * (x_screen_space * width_world_space);
+    let x_offset = self.scene.camera.right() * (x_screen_space * width_world_space);
     // mul -1 because it's offset down
-    let y_offset = -self.up() * (y_screen_space * height_world_space);
+    let y_offset = -self.scene.camera.up() * (y_screen_space * height_world_space);
 
     let pixel_world_space = top_left + x_offset + y_offset;
 
-    let direction = (pixel_world_space - self.camera).normalize();
+    let direction = (pixel_world_space - self.scene.camera.position).normalize();
 
     let ray = Ray {
-      origin: self.camera,
+      origin: self.scene.camera.position,
       direction
     };
 
@@ -249,136 +324,14 @@ impl Renderer {
   }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct Options {
-  pub camera: Vec3,
-  pub rotation: Vec3,
-  pub fov: f64,
-  pub width: u32,
-  pub height: u32,
-  pub scene: Scene,
-}
-
-impl Options {
-  pub fn new(width: u32, height: u32) -> Options {
-    Options {
-      camera: Vec3 { x: 5., y: 5., z: 5. },
-      rotation: Vec3 { x: 0.7, y: -std::f64::consts::PI / 4., z: 0. },
-      fov: 70.,
-      width,
-      height,
-      scene: Scene {
-        objects: vec![
-          Object {
-            name: "sphere".to_string(),
-            material: Material {
-              colour: (
-                1.0,
-                0.5212054252624512,
-                0.0,
-              ),
-              specular: 5.0,
-              metallic: 1.0,
-            },
-            geometry: Geometry::Sphere {
-              center: Vec3 {
-                x: 1.5,
-                y: 0.0,
-                z: 0.0,
-              },
-              radius: 1.0,
-            },
-          },
-          Object {
-            name: "sphere".to_string(),
-            material: Material {
-              colour: (
-                1.0,
-                0.3486607074737549,
-                0.0,
-              ),
-              specular: 800.0,
-              metallic: 0.2,
-            },
-            geometry: Geometry::Sphere {
-              center: Vec3 {
-                x: 3.1,
-                y: 0.0,
-                z: 2.1,
-              },
-              radius: 1.0,
-            },
-          },
-          Object {
-            name: "sphere".to_string(),
-            material: Material {
-              colour: (
-                0.0,
-                0.6445307731628418,
-                1.0,
-              ),
-              specular: 80.0,
-              metallic: 0.,
-            },
-            geometry: Geometry::Sphere {
-              center: Vec3 {
-                x: -8.3,
-                y: 0.0,
-                z: 0.0,
-              },
-              radius: 1.0,
-            },
-          },
-          Object {
-            name: "plane".to_string(),
-            material: Material {
-              colour: (0.8, 0.8, 1.),
-              specular: 50.,
-              metallic: 0.2,
-            },
-            geometry: Geometry::Plane {
-              center: Vec3 { x: 0., y: -1.5, z: 0. },
-              normal: Vec3 { x: 0., y: 1., z: 0. },
-              size: 5.,
-            },
-          },
-        ],
-        lights: vec![
-          Light::Direction {
-            intensity: (0.4, 0.4, 0.4),
-            direction: Vec3 { x: -1., y: -1.5, z: -0.5 }.normalize(),
-          },
-          Light::Point {
-            intensity: (0.4, 0.4, 0.4),
-            position: Vec3 { x: 0., y: 2., z: 0., },
-          },
-        ],
-        background_colour: (0.5, 0.8, 1.),
-        ambient_light: (0.2, 0.2, 0.2),
-        reflection_limit: 4,
-        do_objects_spin: false,
-      },
-    }
-  }
-}
-
 pub fn render_image (
-  options: Arc<Mutex<Options>>,
+  renderer: Arc<Mutex<Renderer>>,
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
   frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 ) {
   let start: f64 = Time::now_millis();
 
-  let options = options.lock().unwrap().clone();
-
-  let renderer = Renderer {
-    camera: options.camera,
-    rotation: options.rotation,
-    fov: options.fov,
-    width: options.width,
-    height: options.height,
-    scene: options.scene,
-  };
+  let renderer = renderer.lock().unwrap().clone();
 
   let mut new_image = image.lock().unwrap().clone();
 
