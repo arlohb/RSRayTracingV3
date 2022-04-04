@@ -110,7 +110,7 @@ impl App {
         },
       },
       texture: None,
-      last_time: Time::now(),
+      last_time: Time::now_millis(),
       g_renderer: options,
       image,
       frame_times,
@@ -152,7 +152,7 @@ impl epi::App for App {
       Err(_) => 1.,
     };
 
-    let now = Time::now();
+    let now = Time::now_millis();
     // delta_time is in seconds
     let delta_time = (now - self.last_time) / 1000.;
     self.last_time = now;

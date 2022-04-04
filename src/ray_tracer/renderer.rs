@@ -367,7 +367,7 @@ pub fn render_image (
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
   frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 ) {
-  let start: f64 = Time::now();
+  let start: f64 = Time::now_millis();
 
   let options = options.lock().unwrap().clone();
 
@@ -388,7 +388,7 @@ pub fn render_image (
   image_global.size = new_image.size;
   image_global.pixels = new_image.pixels;
 
-  let end: f64 = Time::now();
+  let end: f64 = Time::now_millis();
   let frame_time = end - start;
   frame_times.lock().unwrap().add(end, frame_time as f32);
 }
