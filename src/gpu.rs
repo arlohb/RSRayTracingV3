@@ -8,6 +8,9 @@ pub struct Gpu {
 
 impl Gpu {
   pub async fn new() -> Self {
+    // so that wgpu doesn't silently fail
+    env_logger::init();
+
     // create the instance
     let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         
