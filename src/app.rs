@@ -26,7 +26,7 @@ impl App {
     let (placement_radius, random_sphere_count) = if num_cpus::get() > 2 {
       (50., 100)
     } else {
-      (20., 10)
+      (20., 5)
     };
 
     let mut objects: Vec<Object> = vec![];
