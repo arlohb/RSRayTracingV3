@@ -23,8 +23,14 @@ pub fn move_and_rotate(
     camera.rotation.x += look_speed;
   }
 
+  // x should be clamped between -pi/2 and pi/2
   camera.rotation.x = camera.rotation.x.clamp(-0.5 * std::f64::consts::PI, 0.5 * std::f64::consts::PI);
-  camera.rotation.y %= 2. * std::f64::consts::PI;
+
+  // y should be wrapped around to between -pi and pi
+  if camera.rotation.y < std::f64::consts::PI { camera.rotation.y += 2. * std::f64::consts::PI; }
+  if camera.rotation.y > std::f64::consts::PI { camera.rotation.y -= 2. * std::f64::consts::PI; }
+
+  // z should be clamped between -pi and pi
   camera.rotation.z = camera.rotation.z.clamp(-std::f64::consts::PI, std::f64::consts::PI);
 
   let move_speed = if input.modifiers.shift {
