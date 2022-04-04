@@ -78,12 +78,12 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
         }
       });
 
-      vec3_widget(ui, "pos", scene.objects[index].geometry.position_as_mut());
-
       if has_removed_object {
         continue;
       }
 
+      vec3_widget(ui, "pos", scene.objects[index].geometry.position_as_mut());
+      
       let object = &mut scene.objects[index];
 
       match &mut object.geometry {
