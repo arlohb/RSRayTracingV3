@@ -35,14 +35,12 @@ fn main() {
   println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
   println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
   println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
+  
+  // create the renderer thread
+  ray_tracer::start_render_thread(renderer.clone(), image.clone(), frame_times.clone());
 
   // create the app
   let app = crate::App::new(renderer.clone(), image.clone(), frame_times.clone());
-
-  // create the renderer thread
-  std::thread::spawn(move || loop {
-    crate::ray_tracer::render_image(renderer.clone(), image.clone(), frame_times.clone());
-  });
 
   // run the app in a window
   let native_options = eframe::NativeOptions {

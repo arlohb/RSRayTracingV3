@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use rand_distr::Distribution;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::*;
 
@@ -296,7 +296,7 @@ impl Renderer {
     self.trace_ray(&ray, 0)
   }
 
-  pub fn rs_render(&self, image: &mut eframe::epaint::ColorImage) {
+  pub fn render(&self, image: &mut eframe::epaint::ColorImage) {
     if image.width() != self.width as usize || image.height() != self.height as usize {
       *image = eframe::epaint::ColorImage::new([self.width as usize, self.height as usize], eframe::epaint::Color32::BLACK);
     }
@@ -324,24 +324,32 @@ impl Renderer {
   }
 }
 
-pub fn render_image (
+pub fn start_render_thread(
   renderer: Arc<Mutex<Renderer>>,
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
-  frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
+  frame_times: Arc<Mutex<eframe::egui::util::History::<f32>>>,
 ) {
-  let start: f64 = Time::now_millis();
+  std::thread::spawn(move || loop {
+    let start: f64 = Time::now_millis();
 
-  let renderer = renderer.lock().unwrap().clone();
+    // can unwrap here because if mutex is poisoned, it will panic anyway
+    let renderer = renderer.lock().unwrap().clone();
 
-  let mut new_image = image.lock().unwrap().clone();
+    // I don't want to lock the image mutex while rendering,
+    // so I clone it and draw it to that
+    let mut new_image = image.lock().unwrap().clone();
 
-  renderer.rs_render(&mut new_image);
+    // will render to the new image
+    renderer.render(&mut new_image);
 
-  let image_global = &mut image.lock().unwrap();
-  image_global.size = new_image.size;
-  image_global.pixels = new_image.pixels;
+    // copy the data from the new image to the global image
+    let image_global = &mut image.lock().unwrap();
+    image_global.size = new_image.size;
+    image_global.pixels = new_image.pixels;
 
-  let end: f64 = Time::now_millis();
-  let frame_time = end - start;
-  frame_times.lock().unwrap().add(end, frame_time as f32);
+    // add to the frame history
+    let end: f64 = Time::now_millis();
+    let frame_time = end - start;
+    frame_times.lock().unwrap().add(end, frame_time as f32);
+  });
 }
