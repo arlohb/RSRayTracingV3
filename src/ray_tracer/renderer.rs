@@ -142,13 +142,17 @@ impl Renderer {
     }
   }
 
-  fn calculate_light(
+  /// Get the local colour, accounting for lights and shadows, nothing else.
+  /// 
+  /// Reflections etc. are not accounted for.
+  fn calculate_local_colour(
     &self,
     point: Vec3,
     normal: Vec3,
     material: &Material,
   ) -> (f64, f64, f64) {
-    let mut result = (
+    // the brightness starts at the ambient light level
+    let mut brightness = (
       self.scene.ambient_light.0,
       self.scene.ambient_light.1,
       self.scene.ambient_light.2,
@@ -168,23 +172,33 @@ impl Renderer {
         None => (),
       }
 
-      let intensity = light.intensity(point);
+      // get the intensity of the light,
+      // for some lights this will depend on the point
+      let base_intensity = light.intensity(point);
 
-      let strength = (normal.dot(point_to_light)
-        / (normal.length() * point_to_light.length())).clamp(0., 1.);
-      
+      // calculate the intensity of the light depending on the angle
+      let angle_intensity = (normal.dot(point_to_light)
+        / (normal.length() * point_to_light.length()))
+        .clamp(0., 1.);
+
+      // calculate the specular intensity
       let reflection_vector = Ray::get_reflection_vec(shadow_ray.direction, normal);
       let camera_vector = self.scene.camera.position - point;
-
       let specular = (reflection_vector.dot(camera_vector)
         / (reflection_vector.length() * camera_vector.length())).clamp(0., 1.).powf(material.specular);
 
-      result.0 += intensity.0 * (strength + specular);
-      result.1 += intensity.1 * (strength + specular);
-      result.2 += intensity.2 * (strength + specular);
+      // add these all together
+      brightness.0 += base_intensity.0 * (angle_intensity + specular);
+      brightness.1 += base_intensity.1 * (angle_intensity + specular);
+      brightness.2 += base_intensity.2 * (angle_intensity + specular);
     }
 
-    result
+    // apply the final brightness to the colour
+    (
+      brightness.0 * material.colour.0,
+      brightness.1 * material.colour.1,
+      brightness.2 * material.colour.2,
+    )
   }
 
   fn trace_ray(
@@ -194,25 +208,26 @@ impl Renderer {
   ) -> (f64, f64, f64) {
     match ray.closest_intersection(&self.scene) {
       Some((object, hit_point)) => {
+        // get the normal at the point of intersection
         let normal = object.geometry.normal_at_point(hit_point);
 
-        let brightness = self.calculate_light(hit_point, normal, &object.material);
-        let local_colour = (
-            brightness.0 * object.material.colour.0,
-            brightness.1 * object.material.colour.1,
-            brightness.2 * object.material.colour.2,
-        );
+        // get the local colour of the object
+        let local_colour = self.calculate_local_colour(hit_point, normal, &object.material);
 
+        // if the object is not metallic, or the reflection limit is reached, return the local colour
         if object.material.metallic <= 0. || depth >= self.scene.reflection_limit {
           return local_colour;
         }
 
+        // calculate the reflection ray
         let reflection_ray = Ray {
           origin: hit_point,
           direction: Ray::get_reflection_vec(-ray.direction, normal),
         };
+        // trace the reflection ray
         let reflected_colour = self.trace_ray(&reflection_ray, depth + 1);
 
+        // interpolate between the local colour and the reflected colour
         (
           local_colour.0 * (1. - object.material.metallic) + reflected_colour.0 * object.material.metallic,
           local_colour.1 * (1. - object.material.metallic) + reflected_colour.1 * object.material.metallic,
