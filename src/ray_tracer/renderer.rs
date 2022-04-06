@@ -18,12 +18,6 @@ impl ImagePlane {
   }
 }
 
-pub struct Hit<'a> {
-  pub distance: f64,
-  pub point: Vec3,
-  pub object: &'a Object,
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Renderer {
   pub width: u32,
@@ -148,10 +142,6 @@ impl Renderer {
     }
   }
 
-  fn reflect_ray(ray: Vec3, surface_normal: Vec3) -> Vec3 {
-    (surface_normal * surface_normal.dot(ray)) * 2. - ray
-  }
-
   fn calculate_light(
     &self,
     point: Vec3,
@@ -167,11 +157,13 @@ impl Renderer {
     for light in self.scene.lights.iter() {
       let point_to_light = light.point_to_light(point);
 
-      // ignore this light if object is in shadow
-      match self.ray_hit(&Ray {
+      let shadow_ray = &Ray {
         origin: point,
         direction: point_to_light.normalize(),
-      }) {
+      };
+
+      // ignore this light if object is in shadow
+      match shadow_ray.closest_intersection(&self.scene) {
         Some((_object, _point)) => continue,
         None => (),
       }
@@ -181,7 +173,7 @@ impl Renderer {
       let strength = (normal.dot(point_to_light)
         / (normal.length() * point_to_light.length())).clamp(0., 1.);
       
-      let reflection_vector = Renderer::reflect_ray(point_to_light.normalize(), normal);
+      let reflection_vector = Ray::get_reflection_vec(shadow_ray.direction, normal);
       let camera_vector = self.scene.camera.position - point;
 
       let specular = (reflection_vector.dot(camera_vector)
@@ -195,48 +187,12 @@ impl Renderer {
     result
   }
 
-  fn ray_hit(
-    &self,
-    ray: &Ray,
-  ) -> Option<(&Object, Vec3)> {
-    let mut hit: Option<Hit> = None;
-
-    for object in &self.scene.objects {
-      match object.geometry.intersect(ray) {
-        Some((distance, hit_point)) => {
-          if distance < 1e-6 { continue }
-          match &hit {
-            Some(h) => {
-              if distance < h.distance {
-                hit = Some(Hit {
-                  distance,
-                  point: hit_point,
-                  object,
-                });
-              }
-            },
-            None => {
-              hit = Some(Hit {
-                distance,
-                point: hit_point,
-                object,
-              });
-            }
-          }
-        },
-        None => continue
-      };      
-    }
-
-    hit.map(|h| (h.object, h.point))
-  }
-
   fn trace_ray(
     &self,
     ray: &Ray,
     depth: u32,
   ) -> (f64, f64, f64) {
-    match self.ray_hit(ray) {
+    match ray.closest_intersection(&self.scene) {
       Some((object, hit_point)) => {
         let normal = object.geometry.normal_at_point(hit_point);
 
@@ -253,7 +209,7 @@ impl Renderer {
 
         let reflection_ray = Ray {
           origin: hit_point,
-          direction: Renderer::reflect_ray(-ray.direction, normal),
+          direction: Ray::get_reflection_vec(-ray.direction, normal),
         };
         let reflected_colour = self.trace_ray(&reflection_ray, depth + 1);
 
