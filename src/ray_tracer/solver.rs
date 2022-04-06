@@ -1,3 +1,10 @@
+/// Solves a quadratic equation in the form ax^2 + bx + c = 0
+/// 
+/// Returns None if there is not real solution
+/// 
+/// Returns Some(x, x) if there is only one real solution
+/// 
+/// Otherwise will return Some((x1, x2)) where x1 > x2
 pub fn solve_quadratic (a: f64, b: f64, c: f64) -> Option<(f64, f64)> {
   let determinant = b.powi(2) - (4. * a * c);
 
