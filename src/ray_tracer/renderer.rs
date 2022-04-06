@@ -1,10 +1,10 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use rand_distr::Distribution;
 use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::*;
 
+/// The thing that does all of the rendering
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Renderer {
   pub width: u32,
@@ -13,96 +13,12 @@ pub struct Renderer {
 }
 
 impl Renderer {
+  /// Creates a new Renderer with a scene full of random spheres
   pub fn new(width: u32, height: u32) -> Renderer {
-    let min_radius: f64 = 3.;
-    let max_radius: f64 = 8.;
-
-    let (placement_radius, random_sphere_count) = if num_cpus::get() > 2 {
-      (50., 100)
-    } else {
-      (20., 5)
-    };
-
-    let mut objects: Vec<Object> = vec![];
-
-    for i in 0i32..random_sphere_count {
-      // if it failed 100 times, then there's probably no space left
-      for _ in 0..100 {
-        let radius: f64 = rand::random::<f64>() * (max_radius - min_radius) + min_radius;
-        let [x, y]: [f64; 2] = rand_distr::UnitDisc.sample(&mut rand::thread_rng());
-        let x = x * placement_radius;
-        let y = y * placement_radius;
-        let position = Vec3 { x, y: radius, z: y };
-        
-        // reject spheres that are intersecting others
-        if objects.iter().any(|object| {
-          let other_radius = match object.geometry {
-            Geometry::Sphere { radius, .. } => radius,
-            _ => return false,
-          };
-          let min_dst = radius + other_radius;
-          (*object.geometry.position() - position).length() < min_dst
-        }) {
-          continue;
-        }
-
-        objects.push(Object {
-          name: i.to_string(),
-          material: Material {
-            colour: (rand::random(), rand::random(), rand::random()),
-            // some sort of distribution would be better here
-            specular: rand::random::<f64>() * 1000.,
-            metallic: if rand::random::<f64>() > 0.3 { rand::random() } else { 0. },
-          },
-          geometry: Geometry::Sphere {
-            center: position,
-            radius,
-          },
-        });
-
-        break;
-      }
-    }
-
-    objects.push(Object {
-      name: "plane".to_string(),
-      geometry: Geometry::Plane {
-        center: Vec3 { x: 0., y: 0., z: 0. },
-        normal: Vec3 { x: 0., y: 1., z: 0. },
-        size: 100000.,
-      },
-      material: Material {
-        colour: (0.5, 0.5, 0.5),
-        specular: 10.,
-        metallic: 0.2,
-      },
-    });
-  
     Renderer {
       width,
       height,
-      scene: Scene {
-        camera: Camera {
-          position: Vec3 { x: 5., y: 5., z: 5. },
-          rotation: Vec3 { x: 0.7, y: -std::f64::consts::PI / 4., z: 0. },
-          fov: 70.,
-        },
-        objects,
-        lights: vec![
-          Light::Direction {
-            intensity: (0.4, 0.4, 0.4),
-            direction: Vec3 { x: -1., y: -1.5, z: -0.5 }.normalize(),
-          },
-          Light::Point {
-            intensity: (0.4, 0.4, 0.4),
-            position: Vec3 { x: 0., y: 2., z: 0., },
-          },
-        ],
-        background_colour: (0.5, 0.8, 1.),
-        ambient_light: (0.2, 0.2, 0.2),
-        reflection_limit: 4,
-        do_objects_spin: false,
-      },
+      scene: Scene::random_sphere_default_config(),
     }
   }
 
