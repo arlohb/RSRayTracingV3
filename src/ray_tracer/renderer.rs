@@ -5,19 +5,6 @@ use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::*;
 
-pub struct ImagePlane {
-  pub left: Vec3,
-  pub right: Vec3,
-  pub bottom: Vec3,
-  pub top: Vec3,
-}
-
-impl ImagePlane {
-  pub fn center(&self) -> Vec3 {
-    (self.left + self.right) / 2.
-  }
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Renderer {
   pub width: u32,
@@ -119,29 +106,6 @@ impl Renderer {
     }
   }
 
-  fn get_image_plane(&self, aspect_ratio: f64) -> ImagePlane {
-    // working for this is in whiteboard
-    let fov_rad = self.scene.camera.fov * (std::f64::consts::PI / 180.);
-    let width = 2. * f64::tan(fov_rad / 2.);
-    let half_width = width / 2.;
-
-    let height = width * aspect_ratio;
-    let half_height = height / 2.;
-
-    let (forward, right, up) = self.scene.camera.get_vectors_fru();
-
-    // the image plane is 1 unit away from the camera
-    // this is - not + because the camera point in the -forward direction
-    let center = self.scene.camera.position - forward;
-
-    ImagePlane {
-      left: center - (right * half_width),
-      right: center + (right * half_width),
-      bottom: center - (up * half_height),
-      top: center + (up * half_height),
-    }
-  }
-
   /// Get the local colour, accounting for lights and shadows, nothing else.
   /// 
   /// Reflections etc. are not accounted for.
@@ -238,35 +202,6 @@ impl Renderer {
     }
   }
 
-  fn render_pixel(
-    &self,
-    top_left: Vec3,
-    x: u32,
-    y: u32,
-    width_world_space: f64,
-    height_world_space: f64,
-  ) -> (f64, f64, f64) {
-    let x_screen_space = (x as f64 + 0.5) / self.width as f64;
-    let y_screen_space = (y as f64 + 0.5) / self.height as f64;
-
-    let (_, right, up) = self.scene.camera.get_vectors_fru();
-
-    let x_offset = right * (x_screen_space * width_world_space);
-    // mul -1 because it's offset down
-    let y_offset = -up * (y_screen_space * height_world_space);
-
-    let pixel_world_space = top_left + x_offset + y_offset;
-
-    let direction = (pixel_world_space - self.scene.camera.position).normalize();
-
-    let ray = Ray {
-      origin: self.scene.camera.position,
-      direction
-    };
-
-    self.trace_ray(&ray, 0)
-  }
-
   pub fn render(&self, image: &mut eframe::epaint::ColorImage) {
     // If the resolution of the image is incorrect, resize it
     if image.width() != self.width as usize || image.height() != self.height as usize {
@@ -274,20 +209,24 @@ impl Renderer {
       image.pixels = vec![eframe::epaint::Color32::BLACK; (self.width * self.height) as usize];
     }
 
-    let image_plane = self.get_image_plane(self.height as f64 / self.width as f64);
-
-    // working for this in whiteboard
-    let top_left_point = image_plane.left + image_plane.top - image_plane.center();
-
-    let width_world_space = (image_plane.right - image_plane.left).length();
-    let height_world_space = (image_plane.top - image_plane.bottom).length();
+    // calculate the viewport dimensions
+    let viewport = Viewport::new(&self.scene.camera, self.height as f64 / self.width as f64);
 
     image.pixels.par_iter_mut().enumerate().for_each(|(index, colour)| {
+      // get the x and y coordinates of the pixel
       let y = (index as u32) / self.width;
       let x = index as u32 % self.width;
 
-      let pixel = self.render_pixel(top_left_point, x, y, width_world_space, height_world_space);
+      // create the ray
+      let ray = viewport.create_ray(
+        (x as f64 + 0.5) / self.width as f64,
+        (y as f64 + 0.5) / self.height as f64,
+      );
 
+      // calculate the colours of this pixel from 0..1
+      let pixel = self.trace_ray(&ray, 0);
+
+      // convert from 0..1 to a Color32
       *colour = eframe::epaint::Color32::from_rgb(
         (pixel.0 * 255.) as u8,
         (pixel.1 * 255.) as u8,
