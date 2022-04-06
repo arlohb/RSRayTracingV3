@@ -253,8 +253,10 @@ impl Renderer {
   }
 
   pub fn render(&self, image: &mut eframe::epaint::ColorImage) {
+    // If the resolution of the image is incorrect, resize it
     if image.width() != self.width as usize || image.height() != self.height as usize {
-      *image = eframe::epaint::ColorImage::new([self.width as usize, self.height as usize], eframe::epaint::Color32::BLACK);
+      image.size = [self.width as usize, self.height as usize];
+      image.pixels = vec![eframe::epaint::Color32::BLACK; (self.width * self.height) as usize];
     }
 
     let image_plane = self.get_image_plane(self.height as f64 / self.width as f64);
