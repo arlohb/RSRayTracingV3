@@ -1,6 +1,6 @@
 use crate::ray_tracer::*;
 
-/// Holds the world space positions of the edges of the viewport
+/// Holds the world space positions of the edges of the viewport.
 struct ViewportPlane {
   pub left: Vec3,
   pub right: Vec3,
@@ -14,7 +14,7 @@ impl ViewportPlane {
   }
 }
 
-/// Holds data about the viewport used to make the rays
+/// Holds data about the viewport used to make the rays.
 pub struct Viewport {
   // these are stored in the camera struct, but are stored here for convenience
   pub camera_position: Vec3,
@@ -67,7 +67,7 @@ impl Viewport {
     }
   }
 
-  /// Creates a ray from the camera origin to the given point on the viewport
+  /// Creates a ray from the camera origin to the given point on the viewport.
   pub fn create_ray(&self, x_screen_space: f64, y_screen_space: f64) -> Ray {
     let x_offset = self.camera_vectors.1 * (x_screen_space * self.width);
     // mul -1 because it's offset down

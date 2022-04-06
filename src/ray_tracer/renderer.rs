@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::*;
 
-/// The thing that does all of the rendering
+/// The thing that does all of the rendering.
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Renderer {
   pub width: u32,
@@ -13,7 +13,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-  /// Creates a new Renderer with a scene full of random spheres
+  /// Creates a new Renderer with a scene full of random spheres.
   pub fn new(width: u32, height: u32) -> Renderer {
     Renderer {
       width,

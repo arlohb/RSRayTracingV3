@@ -15,9 +15,9 @@ pub struct Scene {
 }
 
 impl Scene {
-  /// Randomly fills a scene with spheres using default parameters
+  /// Randomly fills a scene with spheres using default parameters.
   /// 
-  /// This will be more / less intensive depending on how many CPU cores are available
+  /// This will be more / less intensive depending on how many CPU cores are available.
   pub fn random_sphere_default_config() -> Scene {
     Scene::random_sphere(
       3.,
@@ -27,7 +27,7 @@ impl Scene {
     )
   }
 
-  /// Randomly fills a scene with spheres using the given parameters
+  /// Randomly fills a scene with spheres using the given parameters.
   pub fn random_sphere(
     min_radius: f64,
     max_radius: f64,
