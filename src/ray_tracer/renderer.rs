@@ -268,7 +268,7 @@ impl Renderer {
     let height_world_space = (image_plane.top - image_plane.bottom).length();
 
     image.pixels.par_iter_mut().enumerate().for_each(|(index, colour)| {
-      let y = (index as u32) / (self.width as u32);
+      let y = (index as u32) / self.width;
       let x = index as u32 % self.width;
 
       let pixel = self.render_pixel(top_left_point, x, y, width_world_space, height_world_space);
