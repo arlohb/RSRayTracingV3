@@ -5,27 +5,55 @@ use crate::ray_tracer::{
   solve_quadratic,
 };
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// These parameters influence how light interacts with the object
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Material {
+  /// The albedo colour of the object
+  ///
+  /// (r, g, b) from 0..1
   pub colour: (f64, f64, f64),
+  /// The specularity of the object
+  /// 
+  /// Values that work are from about 1..1000,
+  /// with 1000 being a very shiny object
   pub specular: f64,
+  /// How much of the object's colour is a reflection of the environment
+  /// 
+  /// From 0..1
   pub metallic: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Stores the geometry of an object
+/// 
+/// Each type has it's own parameters
+/// 
+/// Different types are:
+/// - Sphere
+/// - Plane
+#[derive(Deserialize, Serialize, Clone)]
 pub enum Geometry {
+  /// A sphere
   Sphere {
+    /// The center of the sphere
     center: Vec3,
+    /// The radius of the sphere
     radius: f64,
   },
+  /// A plane
   Plane {
+    /// The center of the plane
     center: Vec3,
+    /// The normal the plane faces towards
     normal: Vec3,
-    size: f64, // this is the length of each side
+    /// The length of each side of the plane
+    size: f64,
   },
 }
 
 impl Geometry {
+  /// Get the closest intersection of a ray with this object
+  /// 
+  /// Returns ( distance, hit point ) if hit, None otherwise
   pub fn intersect (&self, ray: &Ray) -> Option<(f64, Vec3)> {
     match self {
       Geometry::Sphere { center, radius } => {
@@ -77,6 +105,7 @@ impl Geometry {
     }
   }
 
+  /// Get the normal of the surface at a point
   pub fn normal_at_point (&self, point: Vec3) -> Vec3 {
     match self {
       Geometry::Sphere { center, radius: _ } => {
@@ -90,6 +119,7 @@ impl Geometry {
     }
   }
 
+  /// Gets the position of the object to show in the editor
   pub fn position (&self) -> &Vec3 {
     match self {
       Geometry::Sphere { center, radius: _ } => center,
@@ -97,6 +127,7 @@ impl Geometry {
     }
   }
 
+  /// Gets the position of the object to show in the editor
   pub fn position_as_mut (&mut self) -> &mut Vec3 {
     match self {
       Geometry::Sphere { center, radius: _ } => center,
@@ -105,20 +136,34 @@ impl Geometry {
   }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Stores all the information about an object
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Object {
+  /// The name of the object
+  /// 
+  /// This doesn't have to be unique, it's just for the editor
   pub name: String,
+  /// The material of the object
   pub material: Material,
+  /// The geometry of the object
   pub geometry: Geometry,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// Stores the information about a light
+/// 
+/// The different types are:
+/// - Direction
+/// - Point
+#[derive(Deserialize, Serialize, Clone)]
 pub enum Light {
   Direction { intensity: (f64, f64, f64), direction: Vec3},
   Point { intensity: (f64, f64, f64), position: Vec3},
 }
 
 impl Light {
+  /// Get the intensity of the light
+  /// 
+  /// For some types of lights (e.g. spot) this will depend on the given point
   pub fn intensity(&self, _point: Vec3) -> (f64, f64, f64) {
     match self {
       Light::Direction { intensity, direction: _ } => *intensity,
@@ -126,6 +171,10 @@ impl Light {
     }
   }
 
+  /// Return a vector from the given point to the light
+  /// 
+  /// For most lights this will depend on the given point,
+  /// with the exception of direction which is the same at every point in a scene
   pub fn point_to_light(&self, point: Vec3) -> Vec3 {
     match self {
       Light::Direction { intensity: _, direction } => -*direction,
