@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ray_tracer::Mat44;
 
+/// Represents a point, vector, or normal in 3D space.
 #[derive(Debug, Copy, Clone, Deserialize, Serialize)]
 pub struct Vec3 {
   pub x: f64,
@@ -11,18 +12,22 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
+  /// A tiny value used when checking for equality.
   const EPSILON: f64 = 0.000001;
-  
+
+  /// The length of a vector.
   pub fn length(&self) -> f64 {
     ((self.x.powi(2)) + (self.y.powi(2)) + (self.z.powi(2))).sqrt()
   }
 
+  /// The dot product between self and v.
   pub fn dot(&self, v: Vec3) -> f64 {
     (self.x * v.x) 
       + (self.y * v.y)
       + (self.z * v.z)
   }
 
+  /// Change this vector to have a length of 1
   pub fn normalize(&self) -> Vec3 {
     let length_squared = self.dot(*self);
 
@@ -38,6 +43,9 @@ impl Vec3 {
     *self
   }
 
+  /// Transform a point by a given matrix.
+  /// 
+  /// This does not do position, it may need to in the future though.
   pub fn transform_point(&self, mat: Mat44) -> Vec3 {
     Vec3 {
       x: self.x * mat[0][0] + self.y * mat[1][0] + self.z * mat[2][0],
