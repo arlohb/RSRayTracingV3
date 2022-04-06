@@ -1,22 +1,28 @@
 use std::ops;
 
+/// An enum for a choice of axis, X, Y, Z.
 pub enum Axis {
   X,
   Y,
   Z,
 }
 
+/// A 4x4 matrix.
+/// 
+/// Right now this is only used to rotate points around an axis.
 pub struct Mat44 {
   data: [[f64; 4]; 4],
 }
 
 impl Mat44 {
+  /// Create a new matrix with the given values.
   pub fn new(data: [[f64; 4]; 4]) -> Mat44 {
     Mat44 {
       data,
     }
   }
 
+  /// Create a matrix representing a rotation around an axis.
   pub fn create_rotation(axis: Axis, radians: f64) -> Mat44 {
     match axis {
       Axis::X => Mat44::new([
