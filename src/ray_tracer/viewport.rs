@@ -26,6 +26,9 @@ pub struct Viewport {
 }
 
 impl Viewport {
+  /// Create a new viewport from the camera and aspect ratio.
+  /// 
+  /// The aspect ratio is the height / width.
   pub fn new(camera: &Camera, aspect_ratio: f64) -> Viewport {
     let (forward, right, up) = camera.get_vectors_fru();
 
