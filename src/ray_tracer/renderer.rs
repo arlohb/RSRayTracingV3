@@ -81,6 +81,9 @@ impl Renderer {
     )
   }
 
+  /// Get the colour of the object the ray hits.
+  /// 
+  /// This takes into account everything, including reflections, shadows, etc.
   fn trace_ray(
     &self,
     ray: &Ray,
@@ -118,6 +121,7 @@ impl Renderer {
     }
   }
 
+  /// Renders an image to the given `ColorImage`.
   pub fn render(&self, image: &mut eframe::epaint::ColorImage) {
     // If the resolution of the image is incorrect, resize it
     if image.width() != self.width as usize || image.height() != self.height as usize {
@@ -152,6 +156,9 @@ impl Renderer {
   }
 }
 
+/// Starts a thread that will continuously render an image to the given `ColorImage`.
+/// 
+/// Will also time how long it takes and add it to `frame_times`.
 pub fn start_render_thread(
   renderer: Arc<Mutex<Renderer>>,
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
