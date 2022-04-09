@@ -40,7 +40,7 @@ fn main() {
   ray_tracer::start_render_thread(renderer.clone(), image.clone(), frame_times.clone());
 
   // create the app
-  let app = crate::App::new(renderer.clone(), image.clone(), frame_times.clone());
+  let app = crate::App::new(renderer, image, frame_times);
 
   // run the app in a window
   let native_options = eframe::NativeOptions {

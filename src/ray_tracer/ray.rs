@@ -53,9 +53,6 @@ impl Ray {
       };      
     }
 
-    match hit {
-      Some(hit) => Some((hit.object, hit.point)),
-      None => None
-    }
+    hit.map(|hit| (hit.object, hit.point))
   }
 }
