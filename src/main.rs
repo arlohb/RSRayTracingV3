@@ -16,7 +16,6 @@ use winit::platform::unix::EventLoopExtUnix;
 // these can be imported without crate::,
 // but I'm doing this to be consistent with the rest of the code
 use crate::ray_tracer::Renderer;
-use crate::gpu::Gpu;
 
 fn main() {
   // create the global thread pool
@@ -28,11 +27,12 @@ fn main() {
   let renderer = Arc::new(Mutex::new(Renderer::new(400, 300)));
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
+  let scene = Arc::new(Mutex::new(ray_tracer::Scene::random_sphere_default_config()));
 
-  std::thread::spawn(|| {
+  std::thread::spawn(move || {
     let event_loop = winit::event_loop::EventLoop::new_any_thread();
     let window = winit::window::Window::new(&event_loop).unwrap();
-    pollster::block_on(Gpu::run(event_loop, window));
+    pollster::block_on(crate::gpu::run(event_loop, window, scene));
   });
 
   // create the renderer thread
