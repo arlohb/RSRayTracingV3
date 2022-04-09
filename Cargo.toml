@@ -1,9 +1,9 @@
 [package]
-name = "rs_ray_tracing_v2"
+name = "rs_ray_tracing_v3"
 version = "0.1.0"
 authors = ["Arlo Blythe"]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [dependencies]
 eframe = "0.17.0"
