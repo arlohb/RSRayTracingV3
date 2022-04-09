@@ -15,7 +15,7 @@ use std::sync::{Mutex, Arc};
 // these can be imported without crate::,
 // but I'm doing this to be consistent with the rest of the code
 use crate::ray_tracer::Renderer;
-// use crate::gpu::Gpu;
+use crate::gpu::Gpu;
 
 fn main() {
   // create the global thread pool
@@ -28,13 +28,13 @@ fn main() {
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
 
-  // // create the gpu instance
-  // let gpu = pollster::block_on(Gpu::new());
+  // create the gpu instance
+  let gpu = pollster::block_on(Gpu::new());
 
-  // // test the compute shader
-  // println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.], &mut image.lock().unwrap())));
-  // println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.], &mut image.lock().unwrap())));
-  // println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.], &mut image.lock().unwrap())));
+  // test the compute shader
+  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
+  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
+  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
   
   // create the renderer thread
   ray_tracer::start_render_thread(renderer.clone(), image.clone(), frame_times.clone());
