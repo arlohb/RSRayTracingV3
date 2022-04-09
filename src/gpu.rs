@@ -1,76 +1,55 @@
+use std::borrow::Cow;
 use wgpu::util::DeviceExt;
+use winit::{
+  event::{Event, WindowEvent},
+  event_loop::{ControlFlow, EventLoop},
+  window::Window,
+};
 
-pub struct Gpu {
-  device: wgpu::Device,
-  queue: wgpu::Queue,
-  shader: wgpu::ShaderModule,
-}
+pub struct Gpu {}
 
 impl Gpu {
-  pub async fn new() -> Self {
-    // so that wgpu doesn't silently fail
-    env_logger::init();
-
-    // create the instance
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-        
-    // create a general connection to the GPU
-    let adapter = instance.request_adapter(&Default::default()).await.unwrap();
-
-    // create a specific connection to the GPU
+  pub async fn run(event_loop: EventLoop<()>, window: Window) {
+    let size = window.inner_size();
+    let instance = wgpu::Instance::new(wgpu::Backends::all());
+    let surface = unsafe { instance.create_surface(&window) };
+    let adapter = instance
+      .request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::default(),
+        force_fallback_adapter: false,
+        // Request an adapter which can render to our surface
+        compatible_surface: Some(&surface),
+      })
+      .await
+      .expect("Failed to find an appropriate adapter");
+  
+    // Create the logical device and command queue
     let (device, queue) = adapter
       .request_device(
         &wgpu::DeviceDescriptor {
           label: None,
-          features: wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
-          limits: Default::default(),
+          features: wgpu::Features::empty(),
+          limits: wgpu::Limits::default(),
         },
         None,
       )
       .await
-      .unwrap();
-
-    // load the shader
+      .expect("Failed to create device");
+  
+    // Load the shaders from disk
     let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
       label: None,
-      source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+      source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
     });
 
-    Gpu {
-      device,
-      queue,
-      shader,
-    }
-  }
-
-  pub async fn run(&self, input: &[f32; 2]) -> [f32; 2] {
-    // deal with the input
-
-    let input_bytes : &[u8] = bytemuck::bytes_of(input);
-    let input_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-      label: None,
-      contents: input_bytes,
-      usage: wgpu::BufferUsages::STORAGE
-        | wgpu::BufferUsages::COPY_DST
-        | wgpu::BufferUsages::COPY_SRC,
-    });
-    let output_buf = self.device.create_buffer(&wgpu::BufferDescriptor {
-      label: None,
-      size: input_bytes.len() as u64,
-      usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-      mapped_at_creation: false,
-    });
-
-    // bind group stuff
-
-    let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
       label: None,
       entries: &[
         wgpu::BindGroupLayoutEntry {
           binding: 0,
-          visibility: wgpu::ShaderStages::COMPUTE,
+          visibility: wgpu::ShaderStages::FRAGMENT,
           ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Storage { read_only: false },
+            ty: wgpu::BufferBindingType::Storage { read_only: true },
             has_dynamic_offset: false,
             min_binding_size: None,
           },
@@ -79,7 +58,18 @@ impl Gpu {
       ],
     });
 
-    let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+    let data = [window.inner_size().width as u32, window.inner_size().height as u32];
+
+    let input_bytes : &[u8] = bytemuck::bytes_of(&data);
+    let input_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+      label: None,
+      contents: input_bytes,
+      usage: wgpu::BufferUsages::STORAGE
+        | wgpu::BufferUsages::COPY_DST
+        | wgpu::BufferUsages::COPY_SRC,
+    });
+
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
       label: None,
       layout: &bind_group_layout,
       entries: &[
@@ -89,43 +79,104 @@ impl Gpu {
         },
       ],
     });
-
-    let compute_pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+  
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: None,
-      bind_group_layouts: &[&bind_group_layout],
+      bind_group_layouts: &[
+        &bind_group_layout,
+      ],
       push_constant_ranges: &[],
     });
-    let pipeline = self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+  
+    let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
+  
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
       label: None,
-      layout: Some(&compute_pipeline_layout),
-      module: &self.shader,
-      entry_point: "main",
+      layout: Some(&pipeline_layout),
+      vertex: wgpu::VertexState {
+        module: &shader,
+        entry_point: "vs_main",
+        buffers: &[],
+      },
+      fragment: Some(wgpu::FragmentState {
+        module: &shader,
+        entry_point: "fs_main",
+        targets: &[swapchain_format.into()],
+      }),
+      primitive: wgpu::PrimitiveState::default(),
+      depth_stencil: None,
+      multisample: wgpu::MultisampleState::default(),
+      multiview: None,
     });
+  
+    let mut config = wgpu::SurfaceConfiguration {
+      usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+      format: swapchain_format,
+      width: size.width,
+      height: size.height,
+      present_mode: wgpu::PresentMode::Mailbox,
+    };
+  
+    surface.configure(&device, &config);
 
-    let mut encoder = self.device.create_command_encoder(&Default::default());
-    {
-      let mut cpass = encoder.begin_compute_pass(&Default::default());
-      cpass.set_pipeline(&pipeline);
-      cpass.set_bind_group(0, &bind_group, &[]);
-      cpass.dispatch(input.len() as u32, 1, 1);
-    }
-    encoder.copy_buffer_to_buffer(&input_buf, 0, &output_buf, 0, input_bytes.len() as u64);
+    event_loop.run(move |event, _, control_flow| {
+      // Have the closure take ownership of the resources.
+      // `event_loop.run` never returns, therefore we must do this to ensure
+      // the resources are properly cleaned up.
+      let _ = (&instance, &adapter, &shader, &pipeline_layout);
+  
+      *control_flow = ControlFlow::Wait;
+      match event {
+        Event::WindowEvent {
+          event: WindowEvent::Resized(size),
+          ..
+        } => {
+          // Reconfigure the surface with the new size
+          config.width = size.width;
+          config.height = size.height;
+          surface.configure(&device, &config);
+          // On macos the window needs to be redrawn manually after resizing
+          window.request_redraw();
+        }
+        Event::RedrawRequested(_) => {
+          let data = [window.inner_size().width as u32, window.inner_size().height as u32];
+          queue.write_buffer(&input_buf, 0, bytemuck::bytes_of(&data));
 
-    // submits encoder for processing
-    self.queue.submit(Some(encoder.finish()));
-
-    let buf_slice = output_buf.slice(..);
-    let buf_future = buf_slice.map_async(wgpu::MapMode::Read);
-
-    self.device.poll(wgpu::Maintain::Wait);
-
-    // waits until buf_future can be read from
-    if buf_future.await.is_ok() {
-      let data_raw = &*buf_slice.get_mapped_range();
-      let data : &[f32] = bytemuck::cast_slice(data_raw);
-      [data[0], data[1]]
-    } else {
-      panic!("Failed to read buffer");
-    }
+          let frame = surface
+            .get_current_texture()
+            .expect("Failed to acquire next swap chain texture");
+          let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+          let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+          {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+              label: None,
+              color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                  load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                  store: true,
+                },
+              }],
+              depth_stencil_attachment: None,
+            });
+            rpass.set_pipeline(&render_pipeline);
+            rpass.set_bind_group(0, &bind_group, &[]);
+            rpass.draw(0..6, 0..1);
+          }
+  
+          queue.submit(Some(encoder.finish()));
+          frame.present();
+        }
+        Event::WindowEvent {
+          event: WindowEvent::CloseRequested,
+          ..
+        } => *control_flow = ControlFlow::Exit,
+        _ => {}
+      }
+    });
   }
 }

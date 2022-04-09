@@ -11,6 +11,7 @@ pub mod time;
 pub use time::Time;
 
 use std::sync::{Mutex, Arc};
+use winit::platform::unix::EventLoopExtUnix;
 
 // these can be imported without crate::,
 // but I'm doing this to be consistent with the rest of the code
@@ -28,24 +29,22 @@ fn main() {
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
 
-  // create the gpu instance
-  let gpu = pollster::block_on(Gpu::new());
+  std::thread::spawn(|| {
+    let event_loop = winit::event_loop::EventLoop::new_any_thread();
+    let window = winit::window::Window::new(&event_loop).unwrap();
+    pollster::block_on(Gpu::run(event_loop, window));
+  });
 
-  // test the compute shader
-  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
-  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
-  println!("Result: {:?}", pollster::block_on(gpu.run(&[1., 2.])));
-  
   // create the renderer thread
   ray_tracer::start_render_thread(renderer.clone(), image.clone(), frame_times.clone());
 
-  // create the app
-  let app = crate::App::new(renderer, image, frame_times);
-
-  // run the app in a window
-  let native_options = eframe::NativeOptions {
-    initial_window_size: Some(eframe::epaint::Vec2 { x: 1000., y: 800. }),
-    ..eframe::NativeOptions::default()
-  };
-  eframe::run_native(Box::new(app), native_options);
+  eframe::run_native(
+    Box::new(
+      crate::App::new(renderer, image, frame_times),
+    ),
+    eframe::NativeOptions {
+      initial_window_size: Some(eframe::epaint::Vec2 { x: 1000., y: 800. }),
+      ..eframe::NativeOptions::default()
+    },
+  );
 }
