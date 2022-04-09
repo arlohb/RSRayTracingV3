@@ -4,25 +4,18 @@ use crate::{ray_tracer::*, panels::*, Time};
 
 pub struct App {
   renderer: Renderer,
-  texture: Option<eframe::epaint::TextureHandle>,
   last_time: f64,
-  g_renderer: Arc<Mutex<Renderer>>,
-  image: Arc<Mutex<eframe::epaint::ColorImage>>,
   frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 }
 
 impl App {
   pub fn new(
     renderer: Arc<Mutex<Renderer>>,
-    image: Arc<Mutex<eframe::epaint::ColorImage>>,
     frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
   ) -> Self {
     Self {
       renderer: renderer.lock().unwrap().clone(),
-      texture: None,
       last_time: Time::now_millis(),
-      g_renderer: renderer.clone(),
-      image,
       frame_times,
     }
   }
@@ -49,10 +42,7 @@ impl epi::App for App {
 
   /// Called each time the UI needs repainting, which may be many times per second.
   /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-  fn update(&mut self, ctx: &egui::Context, _: &epi::Frame) {    
-    let screen_rect = ctx.input().screen_rect;
-    let is_portrait = screen_rect.height() > screen_rect.width();
-    
+  fn update(&mut self, ctx: &egui::Context, _: &epi::Frame) {        
     let mut has_size_changed = false;
 
     let fps = match self.frame_times.try_lock() {
@@ -98,57 +88,12 @@ impl epi::App for App {
       }
     }
 
-    if is_portrait {
-      egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-        egui::SidePanel::left("object_panel")
-          .show_inside(ui, |ui| object_panel(ui, &mut self.renderer.scene));
-        egui::SidePanel::right("settings_panel")
-          .show_inside(ui, |ui| settings_panel(ui, fps, &mut self.renderer, &mut has_size_changed));
-      });
-    } else {
-      egui::SidePanel::right("settings_panel")
-        .show(ctx, |ui| settings_panel(ui, fps, &mut self.renderer, &mut has_size_changed));
-      egui::SidePanel::right("object_panel")
-        .show(ctx, |ui| object_panel(ui, &mut self.renderer.scene));
-    }
-
     egui::CentralPanel::default().show(ctx, |ui| {
-      ui.set_max_width(f32::INFINITY);
-      ui.set_max_height(f32::INFINITY);
-      let texture = &mut self.texture;
-      match texture {
-        Some(texture) => {
-          egui::Resize::default()
-            .default_size((self.renderer.width as f32, self.renderer.height as f32))
-            .show(ui, |ui| {
-              if !has_size_changed {
-                let renderer = &mut self.renderer;
-                renderer.width = ui.available_width() as u32;
-                renderer.height = ui.available_height() as u32;
-              }
-
-              if let Ok(image) = self.image.try_lock() {
-                texture.set(eframe::epaint::ImageData::Color(image.clone()));
-              }
-
-              ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
-            });
-        },
-        None => {
-          let image = eframe::epaint::ColorImage::new(
-            [self.renderer.width as usize, self.renderer.height as usize],
-            eframe::epaint::Color32::BLACK
-          );
-          self.texture = Some(ctx.load_texture("canvas", image));
-        },
-      }
+      ui.columns(2, |cols| {
+        object_panel(&mut cols[0], &mut self.renderer.scene);
+        settings_panel(&mut cols[1], fps, &mut self.renderer, &mut has_size_changed);
+      });
     });
-
-    if let Ok(mut options) = self.g_renderer.try_lock() {
-      options.width = self.renderer.width;
-      options.height = self.renderer.height;
-      options.scene = self.renderer.scene.clone()
-    }
 
     ctx.request_repaint();
   }

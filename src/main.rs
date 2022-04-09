@@ -40,10 +40,10 @@ fn main() {
 
   eframe::run_native(
     Box::new(
-      crate::App::new(renderer, image, frame_times),
+      crate::App::new(renderer, frame_times),
     ),
     eframe::NativeOptions {
-      initial_window_size: Some(eframe::epaint::Vec2 { x: 1000., y: 800. }),
+      initial_window_size: Some(eframe::epaint::Vec2 { x: 600., y: 800. }),
       ..eframe::NativeOptions::default()
     },
   );
