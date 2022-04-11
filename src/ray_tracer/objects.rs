@@ -100,14 +100,14 @@ impl Geometry {
         let solution = solve_quadratic(a, b, c);
 
         match solution {
-            Some(solution) => {
-              if solution.0 < solution.1 {
-                Some((solution.0, ray.origin + (ray.direction * solution.0)))
-              } else {
-                Some((solution.1, ray.origin + (ray.direction * solution.1)))
-              }
+          Some(solution) => {
+            if solution.0 < solution.1 {
+              Some((solution.0, ray.origin + (ray.direction * solution.0)))
+            } else {
+              Some((solution.1, ray.origin + (ray.direction * solution.1)))
             }
-            None => None
+          }
+          None => None
         }
       },
       Geometry::Plane { center, normal, size } => {
