@@ -53,6 +53,10 @@ struct Ray {
 };
 
 let PI = 3.141592654;
+let EPSILON = 0.0001;
+// need to change `trace_ray_with_reflections` as well
+// cause wgsl...
+let BOUNCE_LIMIT = 6u;
 
 [[group(0), binding(0)]]
 var<storage, read> objects: Objects;
@@ -105,7 +109,7 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
       let distance = solve_quadratic(a, b, c);
 
       if (distance < closest_dst) {
-        if (distance < 0.000001) { continue; }
+        if (distance < EPSILON) { continue; }
 
         closest_dst = distance;
         closest_point = ray.origin + (ray.direction * distance);
@@ -114,7 +118,7 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
     } else if (object.geometry.option == 1u) {
       let denominator = dot(ray.direction, object.geometry.vec_data);
 
-      if (abs(denominator) < 0.000001) { continue; }
+      if (abs(denominator) < EPSILON) { continue; }
 
       let numerator = dot(object.geometry.center - ray.origin, object.geometry.vec_data);
       let distance = numerator / denominator;
@@ -130,7 +134,7 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
       }
 
       if (distance < closest_dst) {
-        if (distance < 0.000001) { continue; }
+        if (distance < EPSILON) { continue; }
 
         closest_dst = distance;
         closest_point = hit_point;
@@ -143,32 +147,118 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
   return closest_object_index;
 }
 
-// fn calculate_local_colour(point: vec3<f32>, normal: vec3<f32>, material: Material) {
-//   // the brightness starts at the ambient light level
-//   var brightness = config.ambient_light;
+fn get_point_to_light(light: Light, point: vec3<f32>) -> vec3<f32> {
+  if (light.options == 0u) {
+    return -light.vec_data;
+  } else {
+    return point - light.vec_data;
+  }
+}
 
-//   for (var i = 0u; i < arrayLength(&lights.lights); i++) {
-//     let light = lights.lights[i];
+fn calculate_local_colour(point: vec3<f32>, object: Object) -> vec3<f32> {
+  let normal = object_normal(object, point);
 
-    
-//   }
-// }
+  // the brightness starts at the ambient light level
+  var brightness = config.ambient_light;
 
-fn trace_ray(ray: Ray, depth: u32) -> vec3<f32> {
+  for (var i = 0u; i < arrayLength(&lights.lights); i = i + 1u) {
+    let light = lights.lights[i];
+
+    let point_to_light = get_point_to_light(light, point);
+
+    let shadow_ray = Ray(point, normalize(point_to_light));
+
+    // ignore this light if object is in shadow
+    var temp = vec3<f32>(0., 0., 0.);
+    if (ray_intersect(shadow_ray, &temp) != -1) {
+      continue;
+    }
+
+    // calculate the intensity of the light depending on the angle
+    let angle_intensity = clamp(dot(normal, point_to_light) / (length(normal) * length(point_to_light)), 0., 1.);
+
+    // calculate the specular intensity
+    let reflection_vector = reflect(shadow_ray.direction, normal);
+    let camera_vector = config.position - point;
+    let specular = pow(
+      clamp(
+        dot(reflection_vector, camera_vector) / (length(reflection_vector) * length(camera_vector)), 0., 1.,
+      ),
+      object.material.specular,
+    );
+
+    brightness = brightness + (light.colour * (angle_intensity + specular));
+  }
+
+  return brightness * object.material.colour;
+}
+
+fn trace_ray(ray: ptr<function, Ray>, metallic_stack: ptr<function, array<f32, BOUNCE_LIMIT> >, index: u32) -> vec3<f32> {
   var point = vec3<f32>(0., 0., 0.);
-
-  let object_index = ray_intersect(ray, &point);
+  let object_index = ray_intersect(*ray, &point);
 
   if (object_index == -1) {
+    (*metallic_stack)[index] = 0.;
     return config.background_colour;
   }
 
-  return objects.objects[object_index].material.colour;
+  let object = objects.objects[object_index];
 
-  // // get the normal at the point of intersection
-  // let normal = object_normal(objects.objects[object_index], point);
+  (*metallic_stack)[index] = object.material.metallic;
 
-  // // get the local colour of the object
+  if (object.material.metallic != 0.) {
+    *ray = Ray(point, reflect((*ray).direction, object_normal(object, point)));
+  }
+
+  return calculate_local_colour(point, object);
+}
+
+fn colour_lerp(local: vec3<f32>, reflection: vec3<f32>, metallic: f32) -> vec3<f32> {
+  return local * (1. - metallic) + reflection * metallic;
+}
+
+fn stack_collapse(
+  metallic_stack: ptr<function, array<f32, BOUNCE_LIMIT> >,
+  reflection_colour_stack: ptr<function, array<vec3<f32>, BOUNCE_LIMIT> >,
+  i_collapsed: u32,
+) -> vec3<f32> {
+  for (var i = i32(i_collapsed) - 1; i >= 0; i = i - 1) {
+    (*reflection_colour_stack)[i] = colour_lerp(
+      (*reflection_colour_stack)[i],
+      (*reflection_colour_stack)[i + 1],
+      (*metallic_stack)[i],
+    );
+  }
+
+  return (*reflection_colour_stack)[0];
+}
+
+fn trace_ray_with_reflections(ray: Ray) -> vec3<f32> {
+  var metallic_stack = array<f32, BOUNCE_LIMIT>(0., 0., 0., 0., 0., 0.);
+  var reflection_colour_stack = array<vec3<f32>, BOUNCE_LIMIT>(
+    vec3<f32>(0., 0., 0.),
+    vec3<f32>(0., 0., 0.),
+    vec3<f32>(0., 0., 0.),
+    vec3<f32>(0., 0., 0.),
+    vec3<f32>(0., 0., 0.),
+    vec3<f32>(0., 0., 0.),
+  );
+
+  var reflection_ray = ray;
+
+  for (var i = 0u; i < BOUNCE_LIMIT; i = i + 1u) {
+    reflection_colour_stack[i] = trace_ray(&reflection_ray, &metallic_stack, i);
+
+    if (i != BOUNCE_LIMIT - 1u && metallic_stack[i] == 0.) {
+      if (i == 0u) {
+        return reflection_colour_stack[i];
+      } else {
+        return stack_collapse(&metallic_stack, &reflection_colour_stack, i);
+      }
+    }
+  }
+
+  return stack_collapse(&metallic_stack, &reflection_colour_stack, BOUNCE_LIMIT - 1u);
 }
 
 [[stage(fragment)]]
@@ -201,7 +291,7 @@ fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f3
   let ray = Ray(config.position, normalize(pixel_world_space - config.position));
 
   // calculate the colour of the pixel
-  let pixel = trace_ray(ray, 0u);
+  let pixel = trace_ray_with_reflections(ray);
 
   return vec4<f32>(pixel, 1.);
 
