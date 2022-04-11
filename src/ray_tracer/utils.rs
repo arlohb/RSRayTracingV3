@@ -57,19 +57,19 @@ pub fn tuple_bytes(tuple: (f32, f32, f32)) -> [u8; 16] {
 /// 
 /// Otherwise will return Some((x1, x2)) where x1 > x2
 pub fn solve_quadratic (a: f32, b: f32, c: f32) -> Option<(f32, f32)> {
-  let determinant = b.powi(2) - (4. * a * c);
+  let discriminant = b.powi(2) - (4. * a * c);
 
-  if determinant < 0. {
+  if discriminant < 0. {
     return None;
   }
 
-  if determinant == 0. {
+  if discriminant == 0. {
     let solution = (-b) / (2. * a);
     return Some((solution, solution));
   }
 
-  let plus = (-b + determinant.sqrt()) / (2. * a);
-  let minus = (-b - determinant.sqrt()) / (2. * a);
+  let plus = (-b + discriminant.sqrt()) / (2. * a);
+  let minus = (-b - discriminant.sqrt()) / (2. * a);
 
   Some((plus, minus))
 }
