@@ -112,7 +112,30 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
         closest_object_index = i32(i);
       }
     } else if (object.geometry.option == 1u) {
-      continue;
+      let denominator = dot(ray.direction, object.geometry.vec_data);
+
+      if (abs(denominator) < 0.000001) { continue; }
+
+      let numerator = dot(object.geometry.center - ray.origin, object.geometry.vec_data);
+      let distance = numerator / denominator;
+
+      let hit_point = ray.origin + (ray.direction * distance);
+
+      if (
+        abs(hit_point.x - object.geometry.center.x) > object.geometry.f32_data ||
+        abs(hit_point.y - object.geometry.center.y) > object.geometry.f32_data ||
+        abs(hit_point.z - object.geometry.center.z) > object.geometry.f32_data
+      ) {
+        continue;
+      }
+
+      if (distance < closest_dst) {
+        if (distance < 0.000001) { continue; }
+
+        closest_dst = distance;
+        closest_point = hit_point;
+        closest_object_index = i32(i);
+      }
     }
   }
 
