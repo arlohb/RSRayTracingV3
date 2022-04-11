@@ -294,9 +294,4 @@ fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f3
   let pixel = trace_ray_with_reflections(ray);
 
   return vec4<f32>(pixel, 1.);
-
-  // let t = objects.objects[0].geometry.f32_data;
-  // return vec4<f32>(t, t, t, 1.);
-
-  // return vec4<f32>(coord_in.x / f32(config.width), coord_in.y / f32(config.height), 0.0, 1.0);
 }
