@@ -3,6 +3,7 @@ use crate::ray_tracer::{
   Vec3,
   Ray,
   solve_quadratic,
+  bytes_concat_n,
 };
 
 /// These parameters influence how light interacts with the object.
@@ -13,16 +14,29 @@ pub struct Material {
   /// In the order red, green, blue.
   /// 
   /// In the range 0..1.
-  pub colour: (f64, f64, f64),
+  pub colour: (f32, f32, f32),
   /// The specularity of the object.
   /// 
   /// Values that work are from about 1..1000,
   /// with 1000 being a very shiny object.
-  pub specular: f64,
+  pub specular: f32,
   /// How much of the object's colour is a reflection of the environment.
   /// 
   /// In the range 0..1.
-  pub metallic: f64,
+  pub metallic: f32,
+}
+
+impl Material {
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 20] {
+    bytes_concat_n(&[
+      &self.colour.0.to_le_bytes(),
+      &self.colour.1.to_le_bytes(),
+      &self.colour.2.to_le_bytes(),
+      &self.specular.to_le_bytes(),
+      &self.metallic.to_le_bytes(),
+    ])
+  }
 }
 
 /// Stores the geometry of an object.
@@ -39,7 +53,7 @@ pub enum Geometry {
     /// The center of the sphere.
     center: Vec3,
     /// The radius of the sphere.
-    radius: f64,
+    radius: f32,
   },
   /// A plane
   Plane {
@@ -48,15 +62,32 @@ pub enum Geometry {
     /// The normal the plane faces towards.
     normal: Vec3,
     /// The length of each side of the plane.
-    size: f64,
+    size: f32,
   },
 }
 
 impl Geometry {
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 40] {
+    match self {
+      Geometry::Sphere { center, radius } => bytes_concat_n(&[
+        &0u32.to_le_bytes(),
+        &center.as_bytes(),
+        &radius.to_le_bytes(),
+      ]),
+      Geometry::Plane { center, normal, size } => bytes_concat_n(&[
+        &1u32.to_le_bytes(),
+        &center.as_bytes(),
+        &normal.as_bytes(),
+        &size.to_le_bytes(),
+      ]),
+    }
+  }
+
   /// Get the closest intersection of a ray with this object.
   /// 
   /// Returns ( distance, hit point ) if hit, None otherwise.
-  pub fn intersect (&self, ray: &Ray) -> Option<(f64, Vec3)> {
+  pub fn intersect (&self, ray: &Ray) -> Option<(f32, Vec3)> {
     match self {
       Geometry::Sphere { center, radius } => {
         // working out in whiteboard
@@ -151,6 +182,16 @@ pub struct Object {
   pub geometry: Geometry,
 }
 
+impl Object {
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 64] {
+    bytes_concat_n(&[
+      &self.material.as_bytes(),
+      &self.geometry.as_bytes(),
+    ])
+  }
+}
+
 /// Stores the information about a light.
 /// 
 /// The different types are:
@@ -158,15 +199,35 @@ pub struct Object {
 /// - Point
 #[derive(Deserialize, Serialize, Clone)]
 pub enum Light {
-  Direction { intensity: (f64, f64, f64), direction: Vec3},
-  Point { intensity: (f64, f64, f64), position: Vec3},
+  Direction { intensity: (f32, f32, f32), direction: Vec3},
+  Point { intensity: (f32, f32, f32), position: Vec3},
 }
 
 impl Light {
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 32] {
+    match self {
+      Light::Direction { intensity, direction } => bytes_concat_n(&[
+        &0u32.to_le_bytes(),
+        &intensity.0.to_le_bytes(),
+        &intensity.1.to_le_bytes(),
+        &intensity.2.to_le_bytes(),
+        &direction.as_bytes(),
+      ]),
+      Light::Point { intensity, position } => bytes_concat_n(&[
+        &1u32.to_le_bytes(),
+        &intensity.0.to_le_bytes(),
+        &intensity.1.to_le_bytes(),
+        &intensity.2.to_le_bytes(),
+        &position.as_bytes(),
+      ]),
+    }
+  }
+
   /// Get the intensity of the light.
   /// 
   /// For some types of lights (e.g. spot) this will depend on the given point.
-  pub fn intensity(&self, _point: Vec3) -> (f64, f64, f64) {
+  pub fn intensity(&self, _point: Vec3) -> (f32, f32, f32) {
     match self {
       Light::Direction { intensity, direction: _ } => *intensity,
       Light::Point { intensity, position: _ } => *intensity,

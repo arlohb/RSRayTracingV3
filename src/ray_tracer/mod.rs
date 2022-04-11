@@ -14,10 +14,10 @@ pub use renderer::*;
 // are only used internally
 mod ray;
 use ray::*;
-mod solver;
-use solver::*;
 mod viewport;
 use viewport::*;
+mod utils;
+use utils::*;
 
 // I want to use this across the project without importing it
 pub use crate::Time;

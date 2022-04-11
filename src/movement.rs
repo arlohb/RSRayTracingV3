@@ -5,10 +5,10 @@ use crate::ray_tracer::Camera;
 pub fn move_and_rotate(
   input: &InputState,
   camera: &mut Camera,
-  look_speed: f64,
-  move_speed: f64,
-  shift_mod: f64,
-  ctrl_mod: f64,
+  look_speed: f32,
+  move_speed: f32,
+  shift_mod: f32,
+  ctrl_mod: f32,
 ) {
   if input.key_down(Key::ArrowRight) { camera.rotation.y += look_speed; }
   if input.key_down(Key::ArrowLeft) { camera.rotation.y -= look_speed; }

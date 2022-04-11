@@ -11,10 +11,19 @@ pub struct Camera {
   /// This is a euler rotation in radians.
   pub rotation: Vec3,
   /// The fov of the camera in degrees.
-  pub fov: f64,
+  pub fov: f32,
 }
 
 impl Camera {
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 40] {
+    bytes_concat_n(&[
+      &self.position.as_bytes(),
+      &self.rotation.as_bytes(),
+      &self.fov.to_le_bytes(),
+    ])
+  }
+
   /// Clamps / wraps the rotation to within these limits.
   /// - x should be clamped between -pi/2 and pi/2
   /// - y should be wrapped around to between -pi and pi
@@ -23,14 +32,14 @@ impl Camera {
   /// This should be called after any manipulation of the rotation.
   pub fn clamp_rotation(&mut self) {
     // x should be clamped between -pi/2 and pi/2
-    self.rotation.x = self.rotation.x.clamp(-0.5 * std::f64::consts::PI, 0.5 * std::f64::consts::PI);
+    self.rotation.x = self.rotation.x.clamp(-0.5 * std::f32::consts::PI, 0.5 * std::f32::consts::PI);
 
     // y should be wrapped around to between -pi and pi
-    if self.rotation.y < std::f64::consts::PI { self.rotation.y += 2. * std::f64::consts::PI; }
-    if self.rotation.y > std::f64::consts::PI { self.rotation.y -= 2. * std::f64::consts::PI; }
+    if self.rotation.y < std::f32::consts::PI { self.rotation.y += 2. * std::f32::consts::PI; }
+    if self.rotation.y > std::f32::consts::PI { self.rotation.y -= 2. * std::f32::consts::PI; }
 
     // z should be clamped between -pi and pi
-    self.rotation.z = self.rotation.z.clamp(-std::f64::consts::PI, std::f64::consts::PI);
+    self.rotation.z = self.rotation.z.clamp(-std::f32::consts::PI, std::f32::consts::PI);
   }
 
   /// Calculates the forward, right, up vectors from the camera.

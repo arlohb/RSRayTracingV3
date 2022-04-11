@@ -124,15 +124,15 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
 
         ui.color_edit_button_rgb(&mut colour);
 
-        object.material.colour = (colour[0] as f64, colour[1] as f64, colour[2] as f64);
+        object.material.colour = (colour[0] as f32, colour[1] as f32, colour[2] as f32);
 
         ui.label("spec");
         ui.add(egui::DragValue::new(&mut object.material.specular)
-          .clamp_range::<f64>(0.0..=1000.));
+          .clamp_range::<f32>(0.0..=1000.));
         
         ui.label("met");
         ui.add(egui::DragValue::new(&mut object.material.metallic)
-          .clamp_range::<f64>(0.0..=1.)
+          .clamp_range::<f32>(0.0..=1.)
           .speed(0.1));
       });
 

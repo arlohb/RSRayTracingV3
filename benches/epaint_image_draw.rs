@@ -12,7 +12,7 @@ fn modify_vec(image: &mut eframe::epaint::ColorImage) {
     let y = (pixel_index as u32) / WIDTH;
     let x = pixel_index as u32 % WIDTH;
 
-    let pixel = (x as f64 / WIDTH as f64, y as f64 / HEIGHT as f64, 1.);
+    let pixel = (x as f32 / WIDTH as f32, y as f32 / HEIGHT as f32, 1.);
 
     pixels[index] = (pixel.0 * 255.) as u8;
     pixels[index + 1] = (pixel.1 * 255.) as u8;
@@ -28,7 +28,7 @@ fn modify_pixels(image: &mut eframe::epaint::ColorImage) {
     let y = (index as u32) / WIDTH;
     let x = index as u32 % WIDTH;
 
-    let pixel = (x as f64 / WIDTH as f64, y as f64 / HEIGHT as f64, 1.);
+    let pixel = (x as f32 / WIDTH as f32, y as f32 / HEIGHT as f32, 1.);
 
     *colour = eframe::epaint::Color32::from_rgb(
       (pixel.0 * 255.) as u8,

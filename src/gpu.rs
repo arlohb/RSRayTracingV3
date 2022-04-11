@@ -30,7 +30,8 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
     .request_device(
       &wgpu::DeviceDescriptor {
         label: None,
-        features: wgpu::Features::empty(),
+        features: wgpu::Features::BUFFER_BINDING_ARRAY
+          | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY,
         limits: wgpu::Limits::default(),
       },
       None,
@@ -59,15 +60,50 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
         },
         count: None,
       },
+      wgpu::BindGroupLayoutEntry {
+        binding: 1,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Buffer {
+          ty: wgpu::BufferBindingType::Storage { read_only: true },
+          has_dynamic_offset: false,
+          min_binding_size: None,
+        },
+        count: None,
+      },
+      wgpu::BindGroupLayoutEntry {
+        binding: 2,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Buffer {
+          ty: wgpu::BufferBindingType::Storage { read_only: true },
+          has_dynamic_offset: false,
+          min_binding_size: None,
+        },
+        count: None,
+      },
     ],
   });
 
-  let data = [window.inner_size().width as u32, window.inner_size().height as u32];
+  let width = window.inner_size().width as u32;
+  let height = window.inner_size().height as u32;
+  let (object_bytes, light_bytes, config_bytes) = scene.lock().unwrap().as_bytes(width, height);
 
-  let input_bytes : &[u8] = bytemuck::bytes_of(&data);
-  let input_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let object_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
-    contents: input_bytes,
+    contents: &object_bytes,
+    usage: wgpu::BufferUsages::STORAGE
+      | wgpu::BufferUsages::COPY_DST
+      | wgpu::BufferUsages::COPY_SRC,
+  });
+  let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: &light_bytes,
+    usage: wgpu::BufferUsages::STORAGE
+      | wgpu::BufferUsages::COPY_DST
+      | wgpu::BufferUsages::COPY_SRC,
+  });
+  let config_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: &config_bytes,
     usage: wgpu::BufferUsages::STORAGE
       | wgpu::BufferUsages::COPY_DST
       | wgpu::BufferUsages::COPY_SRC,
@@ -79,7 +115,15 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
     entries: &[
       wgpu::BindGroupEntry {
         binding: 0,
-        resource: input_buf.as_entire_binding(),
+        resource: object_buffer.as_entire_binding(),
+      },
+      wgpu::BindGroupEntry {
+        binding: 1,
+        resource: light_buffer.as_entire_binding(),
+      },
+      wgpu::BindGroupEntry {
+        binding: 2,
+        resource: config_buffer.as_entire_binding(),
       },
     ],
   });
@@ -143,8 +187,12 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
         window.request_redraw();
       }
       Event::RedrawRequested(_) => {
-        let data = [window.inner_size().width as u32, window.inner_size().height as u32];
-        queue.write_buffer(&input_buf, 0, bytemuck::bytes_of(&data));
+        let width = window.inner_size().width;
+        let height = window.inner_size().height;
+        let (object_bytes, light_bytes, config_bytes) = scene.lock().unwrap().as_bytes(width, height);
+        queue.write_buffer(&object_buffer, 0, object_bytes.as_slice());
+        queue.write_buffer(&light_buffer, 0, light_bytes.as_slice());
+        queue.write_buffer(&config_buffer, 0, config_bytes.as_slice());
 
         let frame = surface
           .get_current_texture()

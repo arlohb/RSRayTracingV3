@@ -8,13 +8,48 @@ pub struct Scene {
   pub camera: Camera,
   pub objects: Vec<Object>,
   pub lights: Vec<Light>,
-  pub background_colour: (f64, f64, f64),
-  pub ambient_light: (f64, f64, f64),
+  pub background_colour: (f32, f32, f32),
+  pub ambient_light: (f32, f32, f32),
   pub reflection_limit: u32,
   pub do_objects_spin: bool,
 }
 
 impl Scene {
+  /// Returns a simple scene with a single sphere and light
+  pub fn simple() -> Scene {
+    Scene {
+      objects: vec![
+        Object {
+          name: "Sphere".to_string(),
+          geometry: Geometry::Sphere {
+            center: Vec3 { x: 0., y: 0., z: 0. },
+            radius: 1.,
+          },
+          material: Material {
+            colour: (1., 0., 0.),
+            specular: 100.,
+            metallic: 1.
+          },
+        },
+      ],
+      lights: vec![
+        Light::Point {
+          intensity: (1., 1., 1.),
+          position: Vec3 { x: 0., y: 2., z: 0. },
+        },
+      ],
+      camera: Camera {
+        position: Vec3 { x: 0., y: 0., z: -5. },
+        rotation: Vec3 { x: 0., y: 0., z: 0. },
+        fov: 70.,
+      },
+      background_colour: (0.5, 0.8, 1.),
+      ambient_light: (0.2, 0.2, 0.2),
+      reflection_limit: 4,
+      do_objects_spin: false,
+    }
+  }
+
   /// Randomly fills a scene with spheres using default parameters.
   /// 
   /// This will be more / less intensive depending on how many CPU cores are available.
@@ -29,9 +64,9 @@ impl Scene {
 
   /// Randomly fills a scene with spheres using the given parameters.
   pub fn random_sphere(
-    min_radius: f64,
-    max_radius: f64,
-    placement_radius: f64,
+    min_radius: f32,
+    max_radius: f32,
+    placement_radius: f32,
     sphere_count: u32,
   ) -> Scene {
     let mut objects: Vec<Object> = vec![];
@@ -39,8 +74,8 @@ impl Scene {
     for i in 0u32..sphere_count {
       // if it failed 100 times, then there's probably no space left
       for _ in 0..100 {
-        let radius: f64 = rand::random::<f64>() * (max_radius - min_radius) + min_radius;
-        let [x, y]: [f64; 2] = rand_distr::UnitDisc.sample(&mut rand::thread_rng());
+        let radius: f32 = rand::random::<f32>() * (max_radius - min_radius) + min_radius;
+        let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rand::thread_rng());
         let x = x * placement_radius;
         let y = y * placement_radius;
         let position = Vec3 { x, y: radius, z: y };
@@ -62,8 +97,8 @@ impl Scene {
           material: Material {
             colour: (rand::random(), rand::random(), rand::random()),
             // some sort of distribution would be better here
-            specular: rand::random::<f64>() * 1000.,
-            metallic: if rand::random::<f64>() > 0.3 { rand::random() } else { 0. },
+            specular: rand::random::<f32>() * 1000.,
+            metallic: if rand::random::<f32>() > 0.3 { rand::random() } else { 0. },
           },
           geometry: Geometry::Sphere {
             center: position,
@@ -111,5 +146,29 @@ impl Scene {
       reflection_limit: 4,
       do_objects_spin: false,
     }
+  }
+
+  pub fn as_bytes(&self, width: u32, height: u32) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    (
+      bytes_concat_fixed_in(self.objects
+        .iter()
+        .map(|object| object.as_bytes())
+        .collect::<Vec<_>>()
+        .as_slice()
+      ),
+      bytes_concat_fixed_in(self.lights
+        .iter()
+        .map(|light| light.as_bytes())
+        .collect::<Vec<_>>()
+        .as_slice()
+      ),
+      bytes_concat(&[
+        &width.to_le_bytes(),
+        &height.to_le_bytes(),
+        &self.camera.as_bytes(),
+        &tuple_bytes(self.background_colour),
+        &tuple_bytes(self.ambient_light),
+      ]),
+    )
   }
 }

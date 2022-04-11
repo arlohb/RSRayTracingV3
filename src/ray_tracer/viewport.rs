@@ -21,22 +21,22 @@ pub struct Viewport {
   pub camera_vectors: (Vec3, Vec3, Vec3), // (forward, right, up)
 
   pub top_left: Vec3,
-  pub width: f64,
-  pub height: f64,
+  pub width: f32,
+  pub height: f32,
 }
 
 impl Viewport {
   /// Create a new viewport from the camera and aspect ratio.
   /// 
   /// The aspect ratio is the height / width.
-  pub fn new(camera: &Camera, aspect_ratio: f64) -> Viewport {
+  pub fn new(camera: &Camera, aspect_ratio: f32) -> Viewport {
     let (forward, right, up) = camera.get_vectors_fru();
 
     // calculate the viewport plane
     let viewport_plane = {
       // working for this is in whiteboard
-      let fov_rad = camera.fov * (std::f64::consts::PI / 180.);
-      let width = 2. * f64::tan(fov_rad / 2.);
+      let fov_rad = camera.fov * (std::f32::consts::PI / 180.);
+      let width = 2. * f32::tan(fov_rad / 2.);
       let half_width = width / 2.;
 
       let height = width * aspect_ratio;
@@ -71,7 +71,7 @@ impl Viewport {
   }
 
   /// Creates a ray from the camera origin to the given point on the viewport.
-  pub fn create_ray(&self, x_screen_space: f64, y_screen_space: f64) -> Ray {
+  pub fn create_ray(&self, x_screen_space: f32, y_screen_space: f32) -> Ray {
     let x_offset = self.camera_vectors.1 * (x_screen_space * self.width);
     // mul -1 because it's offset down
     let y_offset = -self.camera_vectors.2 * (y_screen_space * self.height);

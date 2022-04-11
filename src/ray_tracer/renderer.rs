@@ -30,7 +30,7 @@ impl Renderer {
     point: Vec3,
     normal: Vec3,
     material: &Material,
-  ) -> (f64, f64, f64) {
+  ) -> (f32, f32, f32) {
     // the brightness starts at the ambient light level
     let mut brightness = (
       self.scene.ambient_light.0,
@@ -88,7 +88,7 @@ impl Renderer {
     &self,
     ray: &Ray,
     depth: u32,
-  ) -> (f64, f64, f64) {
+  ) -> (f32, f32, f32) {
     match ray.closest_intersection(&self.scene) {
       Some((object, hit_point)) => {
         // get the normal at the point of intersection
@@ -130,7 +130,7 @@ impl Renderer {
     }
 
     // calculate the viewport dimensions
-    let viewport = Viewport::new(&self.scene.camera, self.height as f64 / self.width as f64);
+    let viewport = Viewport::new(&self.scene.camera, self.height as f32 / self.width as f32);
 
     image.pixels.par_iter_mut().enumerate().for_each(|(index, colour)| {
       // get the x and y coordinates of the pixel
@@ -139,8 +139,8 @@ impl Renderer {
 
       // create the ray
       let ray = viewport.create_ray(
-        (x as f64 + 0.5) / self.width as f64,
-        (y as f64 + 0.5) / self.height as f64,
+        (x as f32 + 0.5) / self.width as f32,
+        (y as f32 + 0.5) / self.height as f32,
       );
 
       // calculate the colours of this pixel from 0..1
@@ -165,7 +165,7 @@ pub fn start_render_thread(
   frame_times: Arc<Mutex<eframe::egui::util::History::<f32>>>,
 ) {
   std::thread::spawn(move || loop {
-    let start: f64 = Time::now_millis();
+    let start: f32 = Time::now_millis();
 
     // can unwrap here because if mutex is poisoned, it will panic anyway
     let renderer = renderer.lock().unwrap().clone();
@@ -183,8 +183,8 @@ pub fn start_render_thread(
     image_global.pixels = new_image.pixels;
 
     // add to the frame history
-    let end: f64 = Time::now_millis();
+    let end: f32 = Time::now_millis();
     let frame_time = end - start;
-    frame_times.lock().unwrap().add(end, frame_time as f32);
+    frame_times.lock().unwrap().add(end as f64, frame_time as f32);
   });
 }

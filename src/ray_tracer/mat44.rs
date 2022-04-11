@@ -11,19 +11,19 @@ pub enum Axis {
 /// 
 /// Right now this is only used to rotate points around an axis.
 pub struct Mat44 {
-  data: [[f64; 4]; 4],
+  data: [[f32; 4]; 4],
 }
 
 impl Mat44 {
   /// Create a new matrix with the given values.
-  pub fn new(data: [[f64; 4]; 4]) -> Mat44 {
+  pub fn new(data: [[f32; 4]; 4]) -> Mat44 {
     Mat44 {
       data,
     }
   }
 
   /// Create a matrix representing a rotation around an axis.
-  pub fn create_rotation(axis: Axis, radians: f64) -> Mat44 {
+  pub fn create_rotation(axis: Axis, radians: f32) -> Mat44 {
     match axis {
       Axis::X => Mat44::new([
         [1., 0., 0., 0.],
@@ -48,8 +48,8 @@ impl Mat44 {
 }
 
 impl ops::Index<usize> for Mat44 {
-  type Output = [f64; 4];
-  fn index(&self, index: usize) -> &[f64; 4] {
+  type Output = [f32; 4];
+  fn index(&self, index: usize) -> &[f32; 4] {
     &self.data[index]
   }
 }

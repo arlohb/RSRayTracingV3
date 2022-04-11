@@ -3,7 +3,7 @@ use crate::ray_tracer::*;
 /// Represents an intersection between a ray and an object.
 struct Hit<'a> {
   /// The distance along a ray at which the intersection is.
-  pub distance: f64,
+  pub distance: f32,
   /// The intersection point.
   pub point: Vec3,
   /// The object that was hit.

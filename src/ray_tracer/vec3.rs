@@ -1,27 +1,36 @@
 use std::ops;
 use serde::{Deserialize, Serialize};
 
-use crate::ray_tracer::Mat44;
+use crate::ray_tracer::{ Mat44, bytes_concat_n };
 
 /// Represents a point, vector, or normal in 3D space.
 #[derive(Debug, Copy, Clone, Deserialize, Serialize)]
 pub struct Vec3 {
-  pub x: f64,
-  pub y: f64,
-  pub z: f64,
+  pub x: f32,
+  pub y: f32,
+  pub z: f32,
 }
 
 impl Vec3 {
   /// A tiny value used when checking for equality.
-  const EPSILON: f64 = 0.000001;
+  const EPSILON: f32 = 0.000001;
+
+  /// Get the byte representation of the object.
+  pub fn as_bytes(&self) -> [u8; 16] {
+    bytes_concat_n(&[
+      &self.x.to_le_bytes(),
+      &self.y.to_le_bytes(),
+      &self.z.to_le_bytes(),
+    ])
+  }
 
   /// The length of a vector.
-  pub fn length(&self) -> f64 {
+  pub fn length(&self) -> f32 {
     ((self.x.powi(2)) + (self.y.powi(2)) + (self.z.powi(2))).sqrt()
   }
 
   /// The dot product between self and v.
-  pub fn dot(&self, v: Vec3) -> f64 {
+  pub fn dot(&self, v: Vec3) -> f32 {
     (self.x * v.x) 
       + (self.y * v.y)
       + (self.z * v.z)
@@ -129,9 +138,9 @@ impl ops::MulAssign<Vec3> for Vec3 {
   }
 }
 
-impl ops::Mul<f64> for Vec3 {
+impl ops::Mul<f32> for Vec3 {
   type Output = Vec3;
-  fn mul(self, rhs: f64) -> Vec3 {
+  fn mul(self, rhs: f32) -> Vec3 {
     Vec3 {
       x: self.x * rhs,
       y: self.y * rhs,
@@ -140,8 +149,8 @@ impl ops::Mul<f64> for Vec3 {
   }
 }
 
-impl ops::MulAssign<f64> for Vec3 {
-  fn mul_assign(&mut self, rhs: f64) {
+impl ops::MulAssign<f32> for Vec3 {
+  fn mul_assign(&mut self, rhs: f32) {
     *self = Vec3 {
       x: self.x * rhs,
       y: self.y * rhs,
@@ -150,9 +159,9 @@ impl ops::MulAssign<f64> for Vec3 {
   }
 }
 
-impl ops::Div<f64> for Vec3 {
+impl ops::Div<f32> for Vec3 {
   type Output = Vec3;
-  fn div(self, rhs: f64) -> Vec3 {
+  fn div(self, rhs: f32) -> Vec3 {
     Vec3 {
       x: self.x / rhs,
       y: self.y / rhs,
@@ -161,8 +170,8 @@ impl ops::Div<f64> for Vec3 {
   }
 }
 
-impl ops::DivAssign<f64> for Vec3 {
-  fn div_assign(&mut self, rhs: f64) {
+impl ops::DivAssign<f32> for Vec3 {
+  fn div_assign(&mut self, rhs: f32) {
     *self = Vec3 {
       x: self.x / rhs,
       y: self.y / rhs,

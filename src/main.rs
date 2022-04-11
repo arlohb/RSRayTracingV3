@@ -6,6 +6,7 @@ pub mod movement;
 pub mod panels;
 pub mod gpu;
 pub mod time;
+pub mod utils;
 
 // I want to use this across the project without importing it
 pub use time::Time;
@@ -13,9 +14,7 @@ pub use time::Time;
 use std::sync::{Mutex, Arc};
 use winit::platform::unix::EventLoopExtUnix;
 
-// these can be imported without crate::,
-// but I'm doing this to be consistent with the rest of the code
-use crate::ray_tracer::Renderer;
+use ray_tracer::*;
 
 fn main() {
   // create the global thread pool
@@ -27,7 +26,7 @@ fn main() {
   let renderer = Arc::new(Mutex::new(Renderer::new(400, 300)));
   let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f32>::new(0..usize::MAX, 1_000.))); // 1 second
-  let scene = Arc::new(Mutex::new(ray_tracer::Scene::random_sphere_default_config()));
+  let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
   std::thread::spawn(move || {
     let event_loop = winit::event_loop::EventLoop::new_any_thread();

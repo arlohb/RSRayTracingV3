@@ -4,7 +4,7 @@ use crate::{ray_tracer::*, panels::*, Time};
 
 pub struct App {
   renderer: Renderer,
-  last_time: f64,
+  last_time: f32,
   frame_times: Arc<Mutex<eframe::egui::util::History<f32>>>,
 }
 
@@ -78,7 +78,7 @@ impl epi::App for App {
           let position = object.geometry.position_as_mut();
           let length = position.length();
 
-          let theta: f64 = 0.5 * std::f64::consts::PI * delta_time;
+          let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;
 
           *position = position.transform_point(Mat44::create_rotation(Axis::Y, theta));
 
