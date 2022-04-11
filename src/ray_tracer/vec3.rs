@@ -16,7 +16,7 @@ impl Vec3 {
   const EPSILON: f32 = 0.000001;
 
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 16] {
+  pub fn as_bytes<const N: usize>(&self) -> [u8; N] {
     bytes_concat_n(&[
       &self.x.to_le_bytes(),
       &self.y.to_le_bytes(),

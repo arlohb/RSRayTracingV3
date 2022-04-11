@@ -6,6 +6,8 @@ use crate::ray_tracer::{
   bytes_concat_n,
 };
 
+use super::utils::tuple_bytes;
+
 /// These parameters influence how light interacts with the object.
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Material {
@@ -30,9 +32,7 @@ impl Material {
   /// Get the byte representation of the object.
   pub fn as_bytes(&self) -> [u8; 20] {
     bytes_concat_n(&[
-      &self.colour.0.to_le_bytes(),
-      &self.colour.1.to_le_bytes(),
-      &self.colour.2.to_le_bytes(),
+      &tuple_bytes::<12>(self.colour),
       &self.specular.to_le_bytes(),
       &self.metallic.to_le_bytes(),
     ])
@@ -68,17 +68,20 @@ pub enum Geometry {
 
 impl Geometry {
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 40] {
+  pub fn as_bytes(&self) -> [u8; 56] {
     match self {
       Geometry::Sphere { center, radius } => bytes_concat_n(&[
         &0u32.to_le_bytes(),
-        &center.as_bytes(),
+        &[0u8; 12],
+        &center.as_bytes::<16>(),
+        &[0u8; 12],
         &radius.to_le_bytes(),
       ]),
       Geometry::Plane { center, normal, size } => bytes_concat_n(&[
         &1u32.to_le_bytes(),
-        &center.as_bytes(),
-        &normal.as_bytes(),
+        &[0u8; 12],
+        &center.as_bytes::<16>(),
+        &normal.as_bytes::<12>(),
         &size.to_le_bytes(),
       ]),
     }
@@ -184,10 +187,12 @@ pub struct Object {
 
 impl Object {
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 64] {
+  pub fn as_bytes(&self) -> [u8; 96] {
     bytes_concat_n(&[
       &self.material.as_bytes(),
+      &[0u8; 12],
       &self.geometry.as_bytes(),
+      &[0u8; 8],
     ])
   }
 }
@@ -205,21 +210,19 @@ pub enum Light {
 
 impl Light {
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 32] {
+  pub fn as_bytes(&self) -> [u8; 48] {
     match self {
       Light::Direction { intensity, direction } => bytes_concat_n(&[
         &0u32.to_le_bytes(),
-        &intensity.0.to_le_bytes(),
-        &intensity.1.to_le_bytes(),
-        &intensity.2.to_le_bytes(),
-        &direction.as_bytes(),
+        &[0u8; 12],
+        &tuple_bytes::<16>(*intensity),
+        &direction.as_bytes::<12>(),
       ]),
       Light::Point { intensity, position } => bytes_concat_n(&[
         &1u32.to_le_bytes(),
-        &intensity.0.to_le_bytes(),
-        &intensity.1.to_le_bytes(),
-        &intensity.2.to_le_bytes(),
-        &position.as_bytes(),
+        &[0u8; 12],
+        &tuple_bytes::<16>(*intensity),
+        &position.as_bytes::<12>(),
       ]),
     }
   }

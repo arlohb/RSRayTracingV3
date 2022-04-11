@@ -11,7 +11,12 @@ use winit::{
 
 use crate::ray_tracer::Scene;
 
-pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Scene>>) {
+pub async fn run(
+  event_loop: EventLoop<()>,
+  window: Window,
+  scene: Arc<Mutex<Scene>>,
+  frame_times: Arc<Mutex<eframe::egui::util::History<f64>>>,
+) {
   let size = window.inner_size();
   let instance = wgpu::Instance::new(wgpu::Backends::all());
   let surface = unsafe { instance.create_surface(&window) };
@@ -187,9 +192,12 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
         window.request_redraw();
       }
       Event::RedrawRequested(_) => {
+        let now = crate::Time::now_millis();
+
         let width = window.inner_size().width;
         let height = window.inner_size().height;
         let (object_bytes, light_bytes, config_bytes) = scene.lock().unwrap().as_bytes(width, height);
+
         queue.write_buffer(&object_buffer, 0, object_bytes.as_slice());
         queue.write_buffer(&light_buffer, 0, light_bytes.as_slice());
         queue.write_buffer(&config_buffer, 0, config_bytes.as_slice());
@@ -222,6 +230,12 @@ pub async fn run(event_loop: EventLoop<()>, window: Window, scene: Arc<Mutex<Sce
 
         queue.submit(Some(encoder.finish()));
         frame.present();
+
+        let end = crate::Time::now_millis();
+        let elapsed = end - now;
+        frame_times.lock().unwrap().add(end, elapsed);
+
+        window.request_redraw();
       }
       Event::WindowEvent {
         event: WindowEvent::CloseRequested,

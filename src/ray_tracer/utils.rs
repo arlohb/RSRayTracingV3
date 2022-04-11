@@ -41,7 +41,7 @@ pub fn bytes_concat_fixed_in<const N: usize>(array: &[[u8; N]]) -> Vec<u8> {
   bytes
 }
 
-pub fn tuple_bytes(tuple: (f32, f32, f32)) -> [u8; 16] {
+pub fn tuple_bytes<const N: usize>(tuple: (f32, f32, f32)) -> [u8; N] {
   bytes_concat_n(&[
     &tuple.0.to_le_bytes(),
     &tuple.1.to_le_bytes(),

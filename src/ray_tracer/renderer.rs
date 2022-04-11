@@ -162,10 +162,10 @@ impl Renderer {
 pub fn start_render_thread(
   renderer: Arc<Mutex<Renderer>>,
   image: Arc<Mutex<eframe::epaint::ColorImage>>,
-  frame_times: Arc<Mutex<eframe::egui::util::History::<f32>>>,
+  frame_times: Arc<Mutex<eframe::egui::util::History::<f64>>>,
 ) {
   std::thread::spawn(move || loop {
-    let start: f32 = Time::now_millis();
+    let start = Time::now_millis();
 
     // can unwrap here because if mutex is poisoned, it will panic anyway
     let renderer = renderer.lock().unwrap().clone();
@@ -183,8 +183,8 @@ pub fn start_render_thread(
     image_global.pixels = new_image.pixels;
 
     // add to the frame history
-    let end: f32 = Time::now_millis();
+    let end = Time::now_millis();
     let frame_time = end - start;
-    frame_times.lock().unwrap().add(end as f64, frame_time as f32);
+    frame_times.lock().unwrap().add(end as f64, frame_time);
   });
 }

@@ -149,6 +149,8 @@ impl Scene {
   }
 
   pub fn as_bytes(&self, width: u32, height: u32) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    let vectors = self.camera.get_vectors_fru();
+
     (
       bytes_concat_fixed_in(self.objects
         .iter()
@@ -163,11 +165,17 @@ impl Scene {
         .as_slice()
       ),
       bytes_concat(&[
+        &self.camera.position.as_bytes::<16>(),
+        &vectors.0.as_bytes::<16>(),
+        &vectors.1.as_bytes::<16>(),
+        &vectors.2.as_bytes::<16>(),
+        &tuple_bytes::<16>(self.background_colour),
+        &tuple_bytes::<12>(self.ambient_light),
+        &self.camera.fov.to_le_bytes(),
+        &self.reflection_limit.to_le_bytes(),
         &width.to_le_bytes(),
         &height.to_le_bytes(),
-        &self.camera.as_bytes(),
-        &tuple_bytes(self.background_colour),
-        &tuple_bytes(self.ambient_light),
+        &[0u8; 4]
       ]),
     )
   }

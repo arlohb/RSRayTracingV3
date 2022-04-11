@@ -60,7 +60,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
 
   ui.separator();
 
-  egui::ScrollArea::vertical().show(ui, |ui| {
+  egui::ScrollArea::vertical().id_source("Objects").show(ui, |ui| {
     let mut has_removed_object = false;
 
     for i in 0..scene.objects.len() {
@@ -141,7 +141,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   });
 }
 
-pub fn settings_panel (ui: &mut egui::Ui, fps: f32, renderer: &mut Renderer, has_size_changed: &mut bool) {
+pub fn settings_panel (ui: &mut egui::Ui, fps: f64, scene: &mut Scene) {
   ui.heading("Settings");
 
   // this isn't perfect as I'm not using a fixed width font
@@ -150,35 +150,29 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f32, renderer: &mut Renderer, has
 
   ui.separator();
 
-  ui.horizontal(|ui| {
-
-    let mut new_width = renderer.width;
-    let mut new_height = renderer.height;
-
-    ui.label("width");
-    ui.add(egui::DragValue::new(&mut new_width)
-      .speed(20));
-    ui.label("height");
-    ui.add(egui::DragValue::new(&mut new_height)
-      .speed(20));
-
-    if new_width != renderer.width || new_height != renderer.height {
-      *has_size_changed = true;
-      renderer.width = new_width;
-      renderer.height = new_height;
-    }
-  });
-
-  ui.separator();
-
-  vec3_widget(ui, "pos", &mut renderer.scene.camera.position);
-  vec3_widget(ui, "rot", &mut renderer.scene.camera.rotation);
+  vec3_widget(ui, "pos", &mut scene.camera.position);
+  vec3_widget(ui, "rot", &mut scene.camera.rotation);
 
   ui.separator();
 
   ui.horizontal(|ui| {
     ui.label("bounces");
-    ui.add(egui::DragValue::new(&mut renderer.scene.reflection_limit)
+    ui.add(egui::DragValue::new(&mut scene.reflection_limit)
       .clamp_range::<u32>(0..=10));
+  });
+
+  ui.horizontal(|ui| {
+    ui.label("fov");
+    ui.add(egui::DragValue::new(&mut scene.camera.fov)
+      .clamp_range::<f64>(1.0..=90.));
+  });
+
+  ui.heading("Debug");
+
+  egui::ScrollArea::vertical().id_source("Debug").show(ui, |ui| {
+    let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(400, 300);
+    ui.label(crate::utils::print_bytes(&object_bytes));
+    ui.label(crate::utils::print_bytes(&light_bytes));
+    ui.label(crate::utils::print_bytes(&config_bytes));
   });
 }

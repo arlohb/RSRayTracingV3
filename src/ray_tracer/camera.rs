@@ -15,15 +15,6 @@ pub struct Camera {
 }
 
 impl Camera {
-  /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 40] {
-    bytes_concat_n(&[
-      &self.position.as_bytes(),
-      &self.rotation.as_bytes(),
-      &self.fov.to_le_bytes(),
-    ])
-  }
-
   /// Clamps / wraps the rotation to within these limits.
   /// - x should be clamped between -pi/2 and pi/2
   /// - y should be wrapped around to between -pi and pi
