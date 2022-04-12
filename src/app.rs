@@ -6,13 +6,13 @@ pub struct App {
   g_scene: Arc<Mutex<Scene>>,
   scene: Scene,
   last_time: f64,
-  frame_times: Arc<Mutex<eframe::egui::util::History<f64>>>,
+  frame_times: Arc<Mutex<crate::History>>,
 }
 
 impl App {
   pub fn new(
     g_scene: Arc<Mutex<Scene>>,
-    frame_times: Arc<Mutex<eframe::egui::util::History<f64>>>,
+    frame_times: Arc<Mutex<crate::History>>,
   ) -> Self {
     Self {
       g_scene: g_scene.clone(),
@@ -45,14 +45,6 @@ impl epi::App for App {
   /// Called each time the UI needs repainting, which may be many times per second.
   /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
   fn update(&mut self, ctx: &egui::Context, _: &epi::Frame) {
-    let fps = match self.frame_times.try_lock() {
-      Ok(times) => {
-        let average: f64 = times.values().sum::<f64>() / times.len().max(1) as f64;
-        1000. / average
-      },
-      Err(_) => 1.,
-    };
-
     let now = Time::now_millis();
     // delta_time is in seconds
     let delta_time = (now - self.last_time) as f32 / 1000.;
@@ -88,7 +80,7 @@ impl epi::App for App {
     egui::CentralPanel::default().show(ctx, |ui| {
       ui.columns(2, |cols| {
         object_panel(&mut cols[0], &mut self.scene);
-        settings_panel(&mut cols[1], fps, &mut self.scene);
+        settings_panel(&mut cols[1], self.frame_times.clone(), &mut self.scene);
       });
     });
 

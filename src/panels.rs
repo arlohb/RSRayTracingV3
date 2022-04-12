@@ -1,4 +1,5 @@
 use eframe::egui;
+use std::sync::{Arc, Mutex};
 use crate::ray_tracer::*;
 
 fn vec3_widget(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, vec3: &mut Vec3) {
@@ -141,12 +142,36 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   });
 }
 
-pub fn settings_panel (ui: &mut egui::Ui, fps: f64, scene: &mut Scene) {
-  ui.heading("Settings");
+pub fn settings_panel (
+  ui: &mut egui::Ui,
+  frame_times: Arc<Mutex<crate::History>>,
+  scene: &mut Scene,
+) {
+  ui.heading("Fps");
 
-  // this isn't perfect as I'm not using a fixed width font
-  // but it still looks better than nothing
-  ui.label(format!("fps: {:.1}", fps));
+  let fps = 1000. / frame_times.lock().unwrap().average(None);
+  let recent_fps = 1000. / frame_times.lock().unwrap().average(Some(1000.));
+
+  ui.label(format!("5 sec average: {:.1}", fps));
+  ui.label(format!("1 sec average: {:.1}", recent_fps));
+
+  egui::plot::Plot::new("Fps history")
+    .legend(egui::plot::Legend::default())
+    .height(200.)
+    .allow_zoom(false)
+    .allow_drag(false)
+    .include_y(0.)
+    .show(ui, |ui| {
+      ui.line(egui::plot::Line::new(egui::plot::Values::from_values(
+        frame_times.lock().unwrap()
+          .values(None)
+          .iter()
+          .map(|frame| egui::plot::Value::new(-frame.age(), 1000. / frame.value))
+          .collect::<Vec<_>>()
+        ))
+          .name("Fps history")
+      )
+    });  
 
   ui.separator();
 

@@ -7,9 +7,10 @@ pub mod panels;
 pub mod gpu;
 pub mod time;
 pub mod utils;
+pub mod history;
 
-// I want to use this across the project without importing it
 pub use time::Time;
+pub use history::History;
 
 use std::sync::{Mutex, Arc};
 use winit::platform::unix::EventLoopExtUnix;
@@ -23,7 +24,7 @@ fn main() {
     .build_global()
     .expect("Failed to create thread pool");
 
-  let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f64>::new(0..usize::MAX, 1_000.))); // 1 second
+  let frame_times = Arc::new(Mutex::new(History::new(5_000.)));
   let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
   let app = Box::new(
@@ -33,7 +34,7 @@ fn main() {
   std::thread::spawn(move || {
     let event_loop = winit::event_loop::EventLoop::new_any_thread();
     let window = winit::window::Window::new(&event_loop).unwrap();
-    pollster::block_on(crate::gpu::run(event_loop, window, scene, frame_times, 120.));
+    pollster::block_on(crate::gpu::run(event_loop, window, scene, frame_times, 240.));
   });
 
   eframe::run_native(

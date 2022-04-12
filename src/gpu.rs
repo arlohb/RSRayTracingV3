@@ -43,7 +43,7 @@ pub async fn run(
     event_loop: EventLoop<()>,
     window: Window,
     scene: Arc<Mutex<Scene>>,
-    frame_times: Arc<Mutex<eframe::egui::util::History<f64>>>,
+    frame_times: Arc<Mutex<crate::History>>,
     fps_limit: f64,
 ) {
     let size = window.inner_size();
@@ -270,7 +270,12 @@ pub async fn run(
                 let now = crate::Time::now_millis();
                 let elapsed = now - last_time;
                 last_time = now;
-                frame_times.lock().unwrap().add(now, elapsed);
+                match frame_times.try_lock() {
+                    Ok(mut frame_times) => {
+                        frame_times.add(elapsed);
+                    },
+                    Err(_) => {},
+                }
 
                 window.request_redraw();
               }
