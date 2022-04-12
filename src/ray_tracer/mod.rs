@@ -8,14 +8,7 @@ pub mod mat44;
 pub use mat44::*;
 pub mod camera;
 pub use camera::*;
-pub mod renderer;
-pub use renderer::*;
 
-// are only used internally
-mod ray;
-use ray::*;
-mod viewport;
-use viewport::*;
 mod utils;
 use utils::*;
 

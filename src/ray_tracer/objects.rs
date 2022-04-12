@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::ray_tracer::{
   Vec3,
-  Ray,
-  solve_quadratic,
   bytes_concat_n,
 };
 
@@ -87,74 +85,6 @@ impl Geometry {
     }
   }
 
-  /// Get the closest intersection of a ray with this object.
-  /// 
-  /// Returns ( distance, hit point ) if hit, None otherwise.
-  pub fn intersect (&self, ray: &Ray) -> Option<(f32, Vec3)> {
-    match self {
-      Geometry::Sphere { center, radius } => {
-        // working out in whiteboard
-        let new_origin = ray.origin - *center;
-
-        let a = 1.;
-        let b = 2. * ray.direction.dot(new_origin);
-        let c = new_origin.dot(new_origin) - radius.powi(2);
-
-        let solution = solve_quadratic(a, b, c);
-
-        match solution {
-          Some(solution) => {
-            if solution.0 < solution.1 {
-              Some((solution.0, ray.origin + (ray.direction * solution.0)))
-            } else {
-              Some((solution.1, ray.origin + (ray.direction * solution.1)))
-            }
-          }
-          None => None
-        }
-      },
-      Geometry::Plane { center, normal, size } => {
-        // working out in whiteboard
-        let denominator = ray.direction.dot(*normal);
-
-        if denominator.abs() < 1e-6 {
-          return None;
-        }
-
-        let numerator = (*center - ray.origin).dot(*normal);
-        let t = numerator / denominator;
-
-        let hit_point = ray.origin + (ray.direction * t);
-
-        if (hit_point.x - center.x).abs() > *size {
-          return None
-        }
-        if (hit_point.y - center.y).abs() > *size {
-          return None
-        }
-        if (hit_point.z - center.z).abs() > *size {
-          return None
-        }
-
-        Some((t, hit_point))
-      },
-    }
-  }
-
-  /// Get the normal of the surface at a point.
-  pub fn normal_at_point (&self, point: Vec3) -> Vec3 {
-    match self {
-      Geometry::Sphere { center, radius: _ } => {
-        // simple circle stuff
-        (point - *center).normalize()
-      },
-      Geometry::Plane { center: _, normal, size: _ } => {
-        // normal is the same everywhere
-        *normal
-      },
-    }
-  }
-
   /// Gets the position of the object to show in the editor.
   pub fn position (&self) -> &Vec3 {
     match self {
@@ -224,27 +154,6 @@ impl Light {
         &tuple_bytes::<16>(*intensity),
         &position.as_bytes::<12>(),
       ]),
-    }
-  }
-
-  /// Get the intensity of the light.
-  /// 
-  /// For some types of lights (e.g. spot) this will depend on the given point.
-  pub fn intensity(&self, _point: Vec3) -> (f32, f32, f32) {
-    match self {
-      Light::Direction { intensity, direction: _ } => *intensity,
-      Light::Point { intensity, position: _ } => *intensity,
-    }
-  }
-
-  /// Return a vector from the given point to the light.
-  /// 
-  /// For most lights this will depend on the given point,
-  /// with the exception of direction which is the same at every point in a scene.
-  pub fn point_to_light(&self, point: Vec3) -> Vec3 {
-    match self {
-      Light::Direction { intensity: _, direction } => -*direction,
-      Light::Point { intensity: _, position } => *position - point,
     }
   }
 }

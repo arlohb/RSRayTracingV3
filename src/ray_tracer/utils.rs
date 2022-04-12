@@ -35,28 +35,3 @@ pub fn tuple_bytes<const N: usize>(tuple: (f32, f32, f32)) -> [u8; N] {
     &tuple.2.to_le_bytes(),
   ])
 }
-
-/// Solves a quadratic equation in the form ax^2 + bx + c = 0
-/// 
-/// Returns None if there is not real solution
-/// 
-/// Returns Some(x, x) if there is only one real solution
-/// 
-/// Otherwise will return Some((x1, x2)) where x1 > x2
-pub fn solve_quadratic (a: f32, b: f32, c: f32) -> Option<(f32, f32)> {
-  let discriminant = b.powi(2) - (4. * a * c);
-
-  if discriminant < 0. {
-    return None;
-  }
-
-  if discriminant == 0. {
-    let solution = (-b) / (2. * a);
-    return Some((solution, solution));
-  }
-
-  let plus = (-b + discriminant.sqrt()) / (2. * a);
-  let minus = (-b - discriminant.sqrt()) / (2. * a);
-
-  Some((plus, minus))
-}

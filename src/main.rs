@@ -18,12 +18,6 @@ use winit::platform::unix::EventLoopExtUnix;
 use ray_tracer::*;
 
 fn main() {
-  // create the global thread pool
-  rayon::ThreadPoolBuilder::new()
-    .num_threads(num_cpus::get())
-    .build_global()
-    .expect("Failed to create thread pool");
-
   let frame_times = Arc::new(Mutex::new(History::new(5_000.)));
   let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
