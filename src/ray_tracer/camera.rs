@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::ray_tracer::*;
 
 /// Stores information about the camera in a scene.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct Camera {
   /// The position of the camera.
   pub position: Vec3,

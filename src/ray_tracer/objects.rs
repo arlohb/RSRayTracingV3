@@ -7,7 +7,7 @@ use crate::ray_tracer::{
 use super::utils::tuple_bytes;
 
 /// These parameters influence how light interacts with the object.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct Material {
   /// The albedo colour of the object.
   ///
@@ -44,7 +44,7 @@ impl Material {
 /// Different types are:
 /// - Sphere
 /// - Plane
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum Geometry {
   /// A sphere.
   Sphere {
@@ -103,7 +103,7 @@ impl Geometry {
 }
 
 /// Stores all the information about an object.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct Object {
   /// The name of the object.
   /// 
@@ -132,7 +132,7 @@ impl Object {
 /// The different types are:
 /// - Direction
 /// - Point
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum Light {
   Direction { intensity: (f32, f32, f32), direction: Vec3},
   Point { intensity: (f32, f32, f32), position: Vec3},

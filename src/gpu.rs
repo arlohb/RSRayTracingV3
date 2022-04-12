@@ -46,6 +46,10 @@ pub async fn run(
   frame_times: Arc<Mutex<crate::History>>,
   fps_limit: f64,
 ) {
+  let mut last_scene = scene.lock().unwrap().clone();
+  let mut last_width = window.inner_size().width;
+  let mut last_height = window.inner_size().height;
+
   let size = window.inner_size();
   let instance = wgpu::Instance::new(wgpu::Backends::all());
   let surface = unsafe { instance.create_surface(&window) };
@@ -223,12 +227,20 @@ pub async fn run(
       Event::RedrawRequested(_) => {
         let width = window.inner_size().width;
         let height = window.inner_size().height;
-        let (object_bytes, light_bytes, config_bytes) =
-          scene.lock().unwrap().as_bytes(width, height);
+        let scene = scene.lock().unwrap().to_owned();
 
-        queue.write_buffer(&object_buffer, 0, object_bytes.as_slice());
-        queue.write_buffer(&light_buffer, 0, light_bytes.as_slice());
-        queue.write_buffer(&config_buffer, 0, config_bytes.as_slice());
+        if (scene != last_scene) | (width != last_width) | (height != last_height) {
+          let (object_bytes, light_bytes, config_bytes) =
+            scene.as_bytes(width, height);
+
+          queue.write_buffer(&object_buffer, 0, object_bytes.as_slice());
+          queue.write_buffer(&light_buffer, 0, light_bytes.as_slice());
+          queue.write_buffer(&config_buffer, 0, config_bytes.as_slice());
+        }
+
+        last_scene = scene;
+        last_width = width;
+        last_height = height;
 
         let frame = surface
           .get_current_texture()

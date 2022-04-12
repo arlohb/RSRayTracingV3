@@ -184,3 +184,43 @@ impl Scene {
     )
   }
 }
+
+impl PartialEq for Scene {
+  fn eq(&self, other: &Scene) -> bool {
+    self.camera == other.camera &&
+    {
+      let mut changed = false;
+
+      self.objects
+        .iter()
+        .enumerate()
+        .for_each(|(index, object)| {
+          match other.objects.get(index) {
+            Some(other_object) => changed |= *object != *other_object,
+            None => changed = true,
+          }
+        });
+      
+      !changed
+    } &&
+    {
+      let mut changed = false;
+
+      self.lights
+        .iter()
+        .enumerate()
+        .for_each(|(index, light)| {
+          match other.lights.get(index) {
+            Some(other_light) => changed |= *light != *other_light,
+            None => changed = true,
+          }
+        });
+      
+      !changed
+    } &&
+    self.background_colour == other.background_colour &&
+    self.ambient_light == other.ambient_light &&
+    self.reflection_limit == other.reflection_limit &&
+    self.do_objects_spin == other.do_objects_spin
+  }
+}
