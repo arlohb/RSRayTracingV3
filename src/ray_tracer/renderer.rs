@@ -1,6 +1,5 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::*;
 
@@ -154,37 +153,4 @@ impl Renderer {
       );
     });
   }
-}
-
-/// Starts a thread that will continuously render an image to the given `ColorImage`.
-/// 
-/// Will also time how long it takes and add it to `frame_times`.
-pub fn start_render_thread(
-  renderer: Arc<Mutex<Renderer>>,
-  image: Arc<Mutex<eframe::epaint::ColorImage>>,
-  frame_times: Arc<Mutex<eframe::egui::util::History::<f64>>>,
-) {
-  std::thread::spawn(move || loop {
-    let start = Time::now_millis();
-
-    // can unwrap here because if mutex is poisoned, it will panic anyway
-    let renderer = renderer.lock().unwrap().clone();
-
-    // I don't want to lock the image mutex while rendering,
-    // so I clone it and draw it to that
-    let mut new_image = image.lock().unwrap().clone();
-
-    // will render to the new image
-    renderer.render(&mut new_image);
-
-    // copy the data from the new image to the global image
-    let image_global = &mut image.lock().unwrap();
-    image_global.size = new_image.size;
-    image_global.pixels = new_image.pixels;
-
-    // add to the frame history
-    let end = Time::now_millis();
-    let frame_time = end - start;
-    frame_times.lock().unwrap().add(end as f64, frame_time);
-  });
 }

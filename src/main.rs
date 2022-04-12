@@ -23,8 +23,6 @@ fn main() {
     .build_global()
     .expect("Failed to create thread pool");
 
-  // let renderer = Arc::new(Mutex::new(Renderer::new(400, 300)));
-  // let image = Arc::new(Mutex::new(eframe::epaint::image::ColorImage::new([400, 300], eframe::epaint::Color32::BLACK)));
   let frame_times = Arc::new(Mutex::new(eframe::egui::util::History::<f64>::new(0..usize::MAX, 1_000.))); // 1 second
   let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
@@ -35,11 +33,8 @@ fn main() {
   std::thread::spawn(move || {
     let event_loop = winit::event_loop::EventLoop::new_any_thread();
     let window = winit::window::Window::new(&event_loop).unwrap();
-    pollster::block_on(crate::gpu::run(event_loop, window, scene, frame_times));
+    pollster::block_on(crate::gpu::run(event_loop, window, scene, frame_times, 120.));
   });
-
-  // create the renderer thread
-  // ray_tracer::start_render_thread(renderer, image, frame_times);
 
   eframe::run_native(
     app,

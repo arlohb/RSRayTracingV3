@@ -13,29 +13,16 @@ pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
   bytes
 }
 
-pub fn bytes_concat(array: &[&[u8]]) -> Vec<u8> {
-  let mut bytes = vec![];
+pub fn bytes_concat_fixed_in_n<const N: usize, const M: usize>(array: &[[u8; N]]) -> [u8; M] {
+  let mut bytes = [0u8; M];
 
   array
     .concat()
     .as_slice()
     .iter()
-    .for_each(|byte| {
-      bytes.push(*byte);
-    });
-
-  bytes
-}
-
-pub fn bytes_concat_fixed_in<const N: usize>(array: &[[u8; N]]) -> Vec<u8> {
-  let mut bytes = vec![];
-
-  array
-    .concat()
-    .as_slice()
-    .iter()
-    .for_each(|byte| {
-      bytes.push(*byte);
+    .enumerate()
+    .for_each(|(i, byte)| {
+      bytes[i] = *byte;
     });
 
   bytes

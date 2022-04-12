@@ -1,4 +1,4 @@
-pub fn print_bytes(bytes: &Vec<u8>) -> String {
+pub fn print_bytes<const N: usize>(bytes: &[u8; N]) -> String {
   let mut s = "".to_string();
 
   let mut i = 0;

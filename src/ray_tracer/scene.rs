@@ -148,23 +148,27 @@ impl Scene {
     }
   }
 
-  pub fn as_bytes(&self, width: u32, height: u32) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+  pub fn as_bytes(&self, width: u32, height: u32) -> (
+    [u8; 96 * 80], // allows for 500 objects
+    [u8; 48 * 2], // allows for 500 lights
+    [u8; 112], // the config
+  ) {
     let vectors = self.camera.get_vectors_fru();
 
     (
-      bytes_concat_fixed_in(self.objects
+      bytes_concat_fixed_in_n(self.objects
         .iter()
         .map(|object| object.as_bytes())
         .collect::<Vec<_>>()
         .as_slice()
       ),
-      bytes_concat_fixed_in(self.lights
+      bytes_concat_fixed_in_n(self.lights
         .iter()
         .map(|light| light.as_bytes())
         .collect::<Vec<_>>()
         .as_slice()
       ),
-      bytes_concat(&[
+      bytes_concat_n(&[
         &self.camera.position.as_bytes::<16>(),
         &vectors.0.as_bytes::<16>(),
         &vectors.1.as_bytes::<16>(),

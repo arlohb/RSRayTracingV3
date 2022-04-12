@@ -146,7 +146,7 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f64, scene: &mut Scene) {
 
   // this isn't perfect as I'm not using a fixed width font
   // but it still looks better than nothing
-  ui.label(format!("fps: {: >4}", fps.round()));
+  ui.label(format!("fps: {:.1}", fps));
 
   ui.separator();
 
