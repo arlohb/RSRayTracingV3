@@ -54,9 +54,8 @@ struct Ray {
 
 let PI = 3.141592654;
 let EPSILON = 0.0001;
-// need to change `trace_ray_with_reflections` as well
-// cause wgsl...
-let BOUNCE_LIMIT = 6u;
+let BOUNCE_LIMIT = // bounce_limit //;
+1u; ////
 
 [[group(0), binding(0)]]
 var<storage, read> objects: Objects;
@@ -234,15 +233,10 @@ fn stack_collapse(
 }
 
 fn trace_ray_with_reflections(ray: Ray) -> vec3<f32> {
-  var metallic_stack = array<f32, BOUNCE_LIMIT>(0., 0., 0., 0., 0., 0.);
-  var reflection_colour_stack = array<vec3<f32>, BOUNCE_LIMIT>(
-    vec3<f32>(0., 0., 0.),
-    vec3<f32>(0., 0., 0.),
-    vec3<f32>(0., 0., 0.),
-    vec3<f32>(0., 0., 0.),
-    vec3<f32>(0., 0., 0.),
-    vec3<f32>(0., 0., 0.),
-  );
+  var metallic_stack = array<f32, BOUNCE_LIMIT>(// metallic_stack_values //);
+  0.); ////
+  var reflection_colour_stack = array<vec3<f32>, BOUNCE_LIMIT>(// reflection_colour_stack_values //);
+  vec3<f32>(0., 0., 0.)); ////
 
   var reflection_ray = ray;
 

@@ -155,11 +155,7 @@ pub fn settings_panel (ui: &mut egui::Ui, fps: f64, scene: &mut Scene) {
 
   ui.separator();
 
-  ui.horizontal(|ui| {
-    ui.label("bounces");
-    ui.add(egui::DragValue::new(&mut scene.reflection_limit)
-      .clamp_range::<u32>(0..=10));
-  });
+  ui.label(format!("bounces   {}", scene.reflection_limit));
 
   ui.horizontal(|ui| {
     ui.label("fov");
