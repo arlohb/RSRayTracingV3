@@ -270,11 +270,8 @@ pub async fn run(
                 let now = crate::Time::now_millis();
                 let elapsed = now - last_time;
                 last_time = now;
-                match frame_times.try_lock() {
-                    Ok(mut frame_times) => {
-                        frame_times.add(elapsed);
-                    },
-                    Err(_) => {},
+                if let Ok(mut frame_times) = frame_times.try_lock() {
+                    frame_times.add(elapsed);
                 }
 
                 window.request_redraw();

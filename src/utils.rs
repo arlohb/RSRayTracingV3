@@ -3,7 +3,7 @@ pub fn print_bytes<const N: usize>(bytes: &[u8; N]) -> String {
 
   let mut i = 0;
 
-  bytes.into_iter().for_each(|byte| {
+  bytes.iter().for_each(|byte| {
     if i % 4 == 0 {
       s.push(' ');
     }

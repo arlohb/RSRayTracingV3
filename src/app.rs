@@ -84,11 +84,8 @@ impl epi::App for App {
       });
     });
 
-    match self.g_scene.try_lock() {
-      Ok(mut scene) => {
-        *scene = self.scene.clone();
-      },
-      Err(_) => {},
+    if let Ok(mut scene) = self.g_scene.try_lock() {
+      *scene = self.scene.clone();
     }
 
     ctx.request_repaint();
