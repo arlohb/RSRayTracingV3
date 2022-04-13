@@ -255,9 +255,7 @@ fn trace_ray_with_reflections(ray: Ray) -> vec3<f32> {
   return stack_collapse(&metallic_stack, &reflection_colour_stack, BOUNCE_LIMIT - 1u);
 }
 
-[[stage(fragment)]]
-fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-
+fn create_ray(coord_in: vec4<f32>) -> Ray {
   // calculate the viewport dimensions
   let fov_rad = config.fov * PI / 180.;
   let half_width = tan(fov_rad / 2.);
@@ -282,9 +280,13 @@ fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f3
 
   let pixel_world_space = top_left + x_offset + y_offset;
 
-  let ray = Ray(config.position, normalize(pixel_world_space - config.position));
+  return Ray(config.position, normalize(pixel_world_space - config.position));
+}
 
-  // calculate the colour of the pixel
+[[stage(fragment)]]
+fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f32> {
+  let ray = create_ray(coord_in);
+
   let pixel = trace_ray_with_reflections(ray);
 
   return vec4<f32>(pixel, 1.);
