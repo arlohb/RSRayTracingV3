@@ -45,10 +45,6 @@ pub async fn run(
   frame_times: Arc<Mutex<crate::History>>,
   fps_limit: f64,
 ) {
-  let mut last_scene = scene.lock().unwrap().clone();
-  let mut last_width = window.inner_size().width;
-  let mut last_height = window.inner_size().height;
-
   let size = window.inner_size();
   let instance = wgpu::Instance::new(wgpu::Backends::all());
   let surface = unsafe { instance.create_surface(&window) };
@@ -202,6 +198,8 @@ pub async fn run(
   surface.configure(&device, &config);
 
   let mut last_time = crate::Time::now_millis();
+  let mut last_scene = scene.lock().unwrap().clone();
+  let mut last_size = winit::dpi::PhysicalSize::new(0, 0);
 
   event_loop.run(move |event, _, control_flow| {
     // Have the closure take ownership of the resources.
@@ -223,13 +221,12 @@ pub async fn run(
         window.request_redraw();
       }
       Event::RedrawRequested(_) => {
-        let width = window.inner_size().width;
-        let height = window.inner_size().height;
-        let scene = scene.lock().unwrap().to_owned();
+        let size = window.inner_size();
+        let scene = scene.lock().unwrap().clone();
 
-        if (scene != last_scene) | (width != last_width) | (height != last_height) {
+        if (scene != last_scene) | (size != last_size) {
           let (object_bytes, light_bytes, config_bytes) =
-            scene.as_bytes(width, height);
+            scene.as_bytes(size.width, size.height);
 
           queue.write_buffer(&object_buffer, 0, object_bytes.as_slice());
           queue.write_buffer(&light_buffer, 0, light_bytes.as_slice());
@@ -237,8 +234,7 @@ pub async fn run(
         }
 
         last_scene = scene;
-        last_width = width;
-        last_height = height;
+        last_size = size;
 
         let frame = surface
           .get_current_texture()
