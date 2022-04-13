@@ -7,6 +7,7 @@ use winit::{
   event_loop::{ControlFlow, EventLoop},
   window::Window,
 };
+use image::{EncodableLayout, GenericImageView};
 
 use crate::ray_tracer::Scene;
 
@@ -36,6 +37,14 @@ fn parse_shader(bounce_limit: u32) -> String {
     .join("\n");
   
   vert + frag_parsed.as_str()
+}
+
+fn read_hdri() -> (image::DynamicImage, (u32, u32)) {
+  let reader = image::io::Reader::open("./assets/table_mountain_1_8k.exr").unwrap();
+  let hdri = reader.decode().unwrap();
+  let size = hdri.dimensions();
+
+  (hdri, size)
 }
 
 pub async fn run(
@@ -80,6 +89,51 @@ pub async fn run(
     )),
   });
 
+  let (hdri, hdri_size) = read_hdri();
+
+  let hdri_texture_size = wgpu::Extent3d {
+    width: hdri_size.0,
+    height: hdri_size.1,
+    depth_or_array_layers: 1,
+  };
+
+  let hdri_texture = device.create_texture(&wgpu::TextureDescriptor {
+    label: Some("hdri_texture"),
+    size: hdri_texture_size,
+    mip_level_count: 1,
+    sample_count: 1,
+    dimension: wgpu::TextureDimension::D2,
+    format: wgpu::TextureFormat::Rgba32Float,
+    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+  });
+
+  queue.write_texture(
+    wgpu::ImageCopyTexture {
+      texture: &hdri_texture,
+      mip_level: 0,
+      origin: wgpu::Origin3d::ZERO,
+      aspect: wgpu::TextureAspect::All,
+    },
+    hdri.to_rgba32f().as_bytes(),
+    wgpu::ImageDataLayout {
+      offset: 0,
+      bytes_per_row: std::num::NonZeroU32::new(16 * hdri_size.0),
+      rows_per_image: std::num::NonZeroU32::new(hdri_size.1),
+    },
+    hdri_texture_size,
+  );
+
+  let hdri_texture_view = hdri_texture.create_view(&wgpu::TextureViewDescriptor::default());
+  let hdri_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+    address_mode_u: wgpu::AddressMode::ClampToEdge,
+    address_mode_v: wgpu::AddressMode::ClampToEdge,
+    address_mode_w: wgpu::AddressMode::ClampToEdge,
+    mag_filter: wgpu::FilterMode::Nearest,
+    min_filter: wgpu::FilterMode::Nearest,
+    mipmap_filter: wgpu::FilterMode::Nearest,
+    ..Default::default()
+  });
+
   let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
     label: None,
     entries: &[
@@ -111,6 +165,22 @@ pub async fn run(
           has_dynamic_offset: false,
           min_binding_size: None,
         },
+        count: None,
+      },
+      wgpu::BindGroupLayoutEntry {
+        binding: 3,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Texture {
+          sample_type: wgpu::TextureSampleType::Float { filterable: false },
+          view_dimension: wgpu::TextureViewDimension::D2,
+          multisampled: false,
+        },
+        count: None,
+      },
+      wgpu::BindGroupLayoutEntry {
+        binding: 4,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
         count: None,
       },
     ],
@@ -156,6 +226,14 @@ pub async fn run(
       wgpu::BindGroupEntry {
         binding: 2,
         resource: config_buffer.as_entire_binding(),
+      },
+      wgpu::BindGroupEntry {
+        binding: 3,
+        resource: wgpu::BindingResource::TextureView(&hdri_texture_view),
+      },
+      wgpu::BindGroupEntry {
+        binding: 4,
+        resource: wgpu::BindingResource::Sampler(&hdri_sampler),
       },
     ],
   });

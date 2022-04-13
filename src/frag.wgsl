@@ -66,6 +66,12 @@ var<storage, read> lights: Lights;
 [[group(0), binding(2)]]
 var<storage, read> config: Config;
 
+[[group(0), binding(3)]]
+var t_hdri: texture_2d<f32>;
+
+[[group(0), binding(4)]]
+var s_hdri: sampler;
+
 // only returns the smallest value
 fn solve_quadratic(a: f32, b: f32, c: f32) -> f32 {
   let discriminant = pow(b, 2.) - (4. * a * c);
@@ -196,9 +202,16 @@ fn trace_ray(ray: ptr<function, Ray>, metallic_stack: ptr<function, array<f32, B
   var point = vec3<f32>(0., 0., 0.);
   let object_index = ray_intersect(*ray, &point);
 
+  let u = 0.5 + (atan2((*ray).direction.x, (*ray).direction.z) / (2. * PI));
+  let v = 0.5 + (asin(-(*ray).direction.y) / PI);
+
+  let hdri = textureSample(t_hdri, s_hdri, vec2<f32>(u, v)).xyz;
+
   if (object_index == -1) {
     (*metallic_stack)[index] = 0.;
-    return config.background_colour;
+    // return config.background_colour;
+
+    return hdri;
   }
 
   let object = objects.objects[object_index];
@@ -255,7 +268,7 @@ fn trace_ray_with_reflections(ray: Ray) -> vec3<f32> {
   return stack_collapse(&metallic_stack, &reflection_colour_stack, BOUNCE_LIMIT - 1u);
 }
 
-fn create_ray(coord_in: vec4<f32>) -> Ray {
+fn create_ray(coord: vec2<f32>) -> Ray {
   // calculate the viewport dimensions
   let fov_rad = config.fov * PI / 180.;
   let half_width = tan(fov_rad / 2.);
@@ -273,10 +286,8 @@ fn create_ray(coord_in: vec4<f32>) -> Ray {
   let height = half_height * 2.;
 
   // create ray
-  let x = coord_in.x / f32(config.width);
-  let y = coord_in.y / f32(config.height);
-  let x_offset = config.right * (x * width);
-  let y_offset = -config.up * (y * height);
+  let x_offset = config.right * (coord.x * width);
+  let y_offset = -config.up * (coord.y * height);
 
   let pixel_world_space = top_left + x_offset + y_offset;
 
@@ -285,7 +296,9 @@ fn create_ray(coord_in: vec4<f32>) -> Ray {
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-  let ray = create_ray(coord_in);
+  let coord = vec2<f32>(coord_in.x / f32(config.width), coord_in.y / f32(config.height));
+
+  let ray = create_ray(coord);
 
   let pixel = trace_ray_with_reflections(ray);
 
