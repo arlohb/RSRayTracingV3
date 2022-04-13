@@ -13,7 +13,6 @@ pub use time::Time;
 pub use history::History;
 
 use std::sync::{Mutex, Arc};
-use winit::platform::unix::EventLoopExtUnix;
 
 use ray_tracer::*;
 
@@ -26,9 +25,7 @@ fn main() {
   );
 
   std::thread::spawn(move || {
-    let event_loop = winit::event_loop::EventLoop::new_any_thread();
-    let window = winit::window::Window::new(&event_loop).unwrap();
-    pollster::block_on(crate::gpu::run(event_loop, window, scene, frame_times, 240.));
+    pollster::block_on(crate::gpu::run(scene, frame_times, 240.));
   });
 
   eframe::run_native(
