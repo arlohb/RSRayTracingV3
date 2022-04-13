@@ -15,6 +15,12 @@ pub struct Scene {
 }
 
 impl Scene {
+  pub const BUFFER_SIZE: (u32, u32, u32) = (
+    96 * 80, // allows for 80 objects
+    48 * 2, // allows for 2 lights
+    112,
+  );
+
   /// Returns a simple scene with a single sphere and light
   pub fn simple() -> Scene {
     Scene {
@@ -149,9 +155,9 @@ impl Scene {
   }
 
   pub fn as_bytes(&self, width: u32, height: u32) -> (
-    [u8; 96 * 80], // allows for 500 objects
-    [u8; 48 * 2], // allows for 500 lights
-    [u8; 112], // the config
+    [u8; Scene::BUFFER_SIZE.0 as usize],
+    [u8; Scene::BUFFER_SIZE.1 as usize],
+    [u8; Scene::BUFFER_SIZE.2 as usize],
   ) {
     let vectors = self.camera.get_vectors_fru();
 
@@ -189,34 +195,30 @@ impl PartialEq for Scene {
   fn eq(&self, other: &Scene) -> bool {
     self.camera == other.camera &&
     {
-      let mut changed = false;
-
-      self.objects
-        .iter()
-        .enumerate()
-        .for_each(|(index, object)| {
-          match other.objects.get(index) {
-            Some(other_object) => changed |= *object != *other_object,
-            None => changed = true,
+      if self.objects.len() != other.objects.len() {
+        return false;
+      } else {
+        for (i, object) in self.objects.iter().enumerate() {
+          if *object != other.objects[i] {
+            return false;
           }
-        });
-      
-      !changed
+        }
+
+        return true;
+      }
     } &&
     {
-      let mut changed = false;
-
-      self.lights
-        .iter()
-        .enumerate()
-        .for_each(|(index, light)| {
-          match other.lights.get(index) {
-            Some(other_light) => changed |= *light != *other_light,
-            None => changed = true,
+      if self.lights.len() != other.lights.len() {
+        return false;
+      } else {
+        for (i, light) in self.lights.iter().enumerate() {
+          if *light != other.lights[i] {
+            return false;
           }
-        });
-      
-      !changed
+        }
+
+        return true;
+      }
     } &&
     self.background_colour == other.background_colour &&
     self.ambient_light == other.ambient_light &&

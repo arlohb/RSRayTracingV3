@@ -2,7 +2,6 @@ use std::{
   borrow::Cow,
   sync::{Arc, Mutex},
 };
-use wgpu::util::DeviceExt;
 use winit::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -121,27 +120,26 @@ pub async fn run(
     ],
   });
 
-  let width = window.inner_size().width as u32;
-  let height = window.inner_size().height as u32;
-  let (object_bytes, light_bytes, config_bytes) = scene.lock().unwrap().as_bytes(width, height);
-
-  let object_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let object_buffer = device.create_buffer(&wgpu::BufferDescriptor {
     label: None,
-    contents: &object_bytes,
+    size: Scene::BUFFER_SIZE.0 as u64,
+    mapped_at_creation: false,
     usage: wgpu::BufferUsages::STORAGE
       | wgpu::BufferUsages::COPY_DST
       | wgpu::BufferUsages::COPY_SRC,
   });
-  let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let light_buffer = device.create_buffer(&wgpu::BufferDescriptor {
     label: None,
-    contents: &light_bytes,
+    size: Scene::BUFFER_SIZE.1 as u64,
+    mapped_at_creation: false,
     usage: wgpu::BufferUsages::STORAGE
       | wgpu::BufferUsages::COPY_DST
       | wgpu::BufferUsages::COPY_SRC,
   });
-  let config_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let config_buffer = device.create_buffer(&wgpu::BufferDescriptor {
     label: None,
-    contents: &config_bytes,
+    size: Scene::BUFFER_SIZE.2 as u64,
+    mapped_at_creation: false,
     usage: wgpu::BufferUsages::STORAGE
       | wgpu::BufferUsages::COPY_DST
       | wgpu::BufferUsages::COPY_SRC,
