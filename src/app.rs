@@ -1,4 +1,3 @@
-use eframe::{egui, epi};
 use std::sync::{Mutex, Arc};
 use crate::{ray_tracer::*, panels::*, Time};
 

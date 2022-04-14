@@ -1,4 +1,4 @@
-use eframe::egui::{InputState, Key};
+use egui::{InputState, Key};
 
 use crate::ray_tracer::Camera;
 

@@ -1,4 +1,4 @@
-use eframe::egui;
+use egui;
 use std::sync::{Arc, Mutex};
 use crate::ray_tracer::*;
 

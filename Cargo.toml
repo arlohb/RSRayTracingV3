@@ -6,7 +6,10 @@ edition = "2021"
 rust-version = "1.60"
 
 [dependencies]
-eframe = "0.17.0"
+egui_wgpu_backend = "0.17"
+egui = "0.17"
+epi = "0.17"
+egui-winit = "0.17"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.79"
 rand = "0.8.5"

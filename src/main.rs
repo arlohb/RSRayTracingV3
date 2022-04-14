@@ -8,6 +8,7 @@ pub mod gpu;
 pub mod time;
 pub mod utils;
 pub mod history;
+pub mod wgpu_app;
 
 pub use time::Time;
 pub use history::History;
@@ -28,11 +29,5 @@ fn main() {
     pollster::block_on(crate::gpu::run(scene, frame_times, 240.));
   });
 
-  eframe::run_native(
-    app,
-    eframe::NativeOptions {
-      initial_window_size: Some(eframe::epaint::Vec2 { x: 700., y: 800. }),
-      ..eframe::NativeOptions::default()
-    },
-  );
+  pollster::block_on(crate::wgpu_app::run(app, 700, 800));
 }
