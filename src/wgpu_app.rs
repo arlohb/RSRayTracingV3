@@ -1,6 +1,7 @@
 use std::{
   time::Instant,
   iter,
+  sync::Arc,
 };
 use egui_wgpu_backend::{
   RenderPass,
@@ -18,26 +19,34 @@ enum Event {
 
 /// This is the repaint signal type that egui needs for requesting a repaint from another thread.
 /// It sends the custom RequestRedraw event to the winit event loop.
-struct ExampleRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<Event>>);
+pub struct RepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<Event>>);
 
-impl epi::backend::RepaintSignal for ExampleRepaintSignal {
+impl epi::backend::RepaintSignal for RepaintSignal {
   fn request_repaint(&self) {
     self.0.lock().unwrap().send_event(Event::RequestRedraw).ok();
   }
 }
 
 pub struct WgpuApp {
-  window: winit::window::Window,
-  device: wgpu::Device,
-  queue: wgpu::Queue,
-  surface: wgpu::Surface,
-  surface_config: wgpu::SurfaceConfiguration,
-  surface_format: wgpu::TextureFormat,
+  pub window: winit::window::Window,
+  pub device: wgpu::Device,
+  pub queue: wgpu::Queue,
+  pub surface: wgpu::Surface,
+  pub surface_config: wgpu::SurfaceConfiguration,
+  pub surface_format: wgpu::TextureFormat,
+  pub state: egui_winit::State,
+  pub context: egui::Context,
+  pub egui_rpass: RenderPass,
+  pub app: Box<dyn epi::App>,
+  pub previous_frame_time: Option<f32>,
+  pub repaint_signal: Arc<RepaintSignal>,
 }
 
 impl WgpuApp {
   pub async fn new(
     window: winit::window::Window,
+    app: Box<dyn epi::App>,
+    repaint_signal: Arc<RepaintSignal>,
   ) -> WgpuApp {
     let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
@@ -69,6 +78,12 @@ impl WgpuApp {
     };
     surface.configure(&device, &surface_config);
 
+    let state = egui_winit::State::new(4096, &window);
+    let context = egui::Context::default();
+
+    // We use the egui_wgpu_backend crate as the render backend.
+    let egui_rpass = RenderPass::new(&device, surface_format, 1);
+
     WgpuApp {
       window,
       device,
@@ -76,13 +91,89 @@ impl WgpuApp {
       surface,
       surface_config,
       surface_format,
+      state,
+      context,
+      egui_rpass,
+      app,
+      previous_frame_time: None,
+      repaint_signal,
     }
+  }
+
+  pub fn render(&mut self) {
+    let output_frame = match self.surface.get_current_texture() {
+      Ok(frame) => frame,
+      Err(e) => {
+        eprintln!("Dropped frame with error: {}", e);
+        return;
+      }
+    };
+    let output_view = output_frame
+      .texture
+      .create_view(&wgpu::TextureViewDescriptor::default());
+
+    // Begin to draw the UI frame.
+    let egui_start = Instant::now();
+    let input = self.state.take_egui_input(&self.window);
+    self.context.begin_frame(input);
+    let app_output = epi::backend::AppOutput::default();
+
+    let frame =  epi::Frame::new(epi::backend::FrameData {
+      info: epi::IntegrationInfo {
+        name: "egui_example",
+        web_info: None,
+        cpu_usage: self.previous_frame_time,
+        native_pixels_per_point: Some(self.window.scale_factor() as _),
+        prefer_dark_mode: None,
+      },
+      output: app_output,
+      repaint_signal: self.repaint_signal.clone(),
+    });
+
+    // Draw the demo application.
+    self.app.update(&self.context, &frame);
+
+    // End the UI frame. We could now handle the output and draw the UI with the backend.
+    let output = self.context.end_frame();
+    let paint_jobs = self.context.tessellate(output.shapes);
+
+    let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+    self.previous_frame_time = Some(frame_time);
+
+    let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+      label: Some("encoder"),
+    });
+
+    // Upload all resources for the GPU.
+    let screen_descriptor = ScreenDescriptor {
+      physical_width: self.surface_config.width,
+      physical_height: self.surface_config.height,
+      scale_factor: self.window.scale_factor() as f32,
+    };
+
+    self.egui_rpass.add_textures(&self.device, &self.queue, &output.textures_delta).expect("Failed to add egui textures");
+    self.egui_rpass.remove_textures(output.textures_delta).expect("Failed to remove egui textures");
+    self.egui_rpass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+
+    // Record all render passes.
+    self.egui_rpass
+      .execute(
+        &mut encoder,
+        &output_view,
+        &paint_jobs,
+        &screen_descriptor,
+        Some(wgpu::Color::BLACK),
+      )
+      .expect("Failed to execute render pass");
+    // Submit the commands.
+    self.queue.submit(iter::once(encoder.finish()));
+
+    // Redraw egui
+    output_frame.present();
   }
 }
 
 pub async fn run(app: Box<dyn epi::App>) {
-  let mut app = app;
-
   let event_loop = winit::event_loop::EventLoop::with_user_event();
   let window = winit::window::WindowBuilder::new()
     .with_decorations(true)
@@ -95,92 +186,17 @@ pub async fn run(app: Box<dyn epi::App>) {
     })
     .build(&event_loop)
     .expect("Failed to create window");
-
-  let mut wgpu_app = crate::wgpu_app::WgpuApp::new(window).await;
-
-  let repaint_signal = std::sync::Arc::new(ExampleRepaintSignal(std::sync::Mutex::new(
+  
+  let repaint_signal = Arc::new(RepaintSignal(std::sync::Mutex::new(
     event_loop.create_proxy(),
   )));
 
-  let mut state = egui_winit::State::new(4096, &wgpu_app.window);
-  let context = egui::Context::default();
+  let mut wgpu_app = crate::wgpu_app::WgpuApp::new(window, app, repaint_signal).await;
 
-  // We use the egui_wgpu_backend crate as the render backend.
-  let mut egui_rpass = RenderPass::new(&wgpu_app.device, wgpu_app.surface_format, 1);
-
-  let mut previous_frame_time = None;
   event_loop.run(move |event, _, control_flow| {
     match event {
       RedrawRequested(..) => {
-        let output_frame = match wgpu_app.surface.get_current_texture() {
-          Ok(frame) => frame,
-          Err(e) => {
-            eprintln!("Dropped frame with error: {}", e);
-            return;
-          }
-        };
-        let output_view = output_frame
-          .texture
-          .create_view(&wgpu::TextureViewDescriptor::default());
-
-        // Begin to draw the UI frame.
-        let egui_start = Instant::now();
-        let input = state.take_egui_input(&wgpu_app.window);
-        context.begin_frame(input);
-        let app_output = epi::backend::AppOutput::default();
-
-        let frame =  epi::Frame::new(epi::backend::FrameData {
-          info: epi::IntegrationInfo {
-            name: "egui_example",
-            web_info: None,
-            cpu_usage: previous_frame_time,
-            native_pixels_per_point: Some(wgpu_app.window.scale_factor() as _),
-            prefer_dark_mode: None,
-          },
-          output: app_output,
-          repaint_signal: repaint_signal.clone(),
-        });
-
-        // Draw the demo application.
-        app.update(&context, &frame);
-
-        // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let output = context.end_frame();
-        let paint_jobs = context.tessellate(output.shapes);
-
-        let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-        previous_frame_time = Some(frame_time);
-
-        let mut encoder = wgpu_app.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-          label: Some("encoder"),
-        });
-
-        // Upload all resources for the GPU.
-        let screen_descriptor = ScreenDescriptor {
-          physical_width: wgpu_app.surface_config.width,
-          physical_height: wgpu_app.surface_config.height,
-          scale_factor: wgpu_app.window.scale_factor() as f32,
-        };
-
-        egui_rpass.add_textures(&wgpu_app.device, &wgpu_app.queue, &output.textures_delta).expect("Failed to add egui textures");
-        egui_rpass.remove_textures(output.textures_delta).expect("Failed to remove egui textures");
-        egui_rpass.update_buffers(&wgpu_app.device, &wgpu_app.queue, &paint_jobs, &screen_descriptor);
-
-        // Record all render passes.
-        egui_rpass
-          .execute(
-            &mut encoder,
-            &output_view,
-            &paint_jobs,
-            &screen_descriptor,
-            Some(wgpu::Color::BLACK),
-          )
-          .expect("Failed to execute render pass");
-        // Submit the commands.
-        wgpu_app.queue.submit(iter::once(encoder.finish()));
-
-        // Redraw egui
-        output_frame.present();
+        wgpu_app.render();
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
         wgpu_app.window.request_redraw();
@@ -196,7 +212,7 @@ pub async fn run(app: Box<dyn epi::App>) {
         }
         event => {
           // Pass the winit events to the platform integration.
-          state.on_event(&context, &event);
+          wgpu_app.state.on_event(&wgpu_app.context, &event);
         }
       },
       _ => (),
