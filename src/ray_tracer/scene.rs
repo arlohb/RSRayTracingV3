@@ -226,20 +226,3 @@ impl PartialEq for Scene {
     self.do_objects_spin == other.do_objects_spin
   }
 }
-
-pub struct SceneBuffers {
-  pub objects: wgpu::Buffer,
-  pub lights: wgpu::Buffer,
-  pub config: wgpu::Buffer,
-}
-
-impl SceneBuffers {
-  pub fn update(&mut self, scene: &Scene, queue: &wgpu::Queue, size: winit::dpi::PhysicalSize<u32>) {
-    let (object_bytes, light_bytes, config_bytes) =
-      scene.as_bytes(size.width, size.height);
-
-    queue.write_buffer(&self.objects, 0, object_bytes.as_slice());
-    queue.write_buffer(&self.lights, 0, light_bytes.as_slice());
-    queue.write_buffer(&self.config, 0, config_bytes.as_slice());
-  }
-}
