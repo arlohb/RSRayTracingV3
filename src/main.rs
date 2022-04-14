@@ -29,5 +29,5 @@ fn main() {
     pollster::block_on(crate::gpu::run(scene, frame_times, 240.));
   });
 
-  pollster::block_on(crate::wgpu_app::run(app, 700, 800));
+  pollster::block_on(crate::wgpu_app::run(app));
 }
