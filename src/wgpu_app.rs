@@ -1,7 +1,7 @@
 use std::{
   time::Instant,
   iter,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 use egui_wgpu_backend::{
   RenderPass,
@@ -11,6 +11,8 @@ use winit::{
   event::Event::*,
   event_loop::ControlFlow,
 };
+
+use crate::ray_tracer::Scene;
 
 /// A custom event type for the winit app.
 enum Event {
@@ -173,8 +175,20 @@ impl WgpuApp {
   }
 }
 
-pub async fn run(app: Box<dyn epi::App>) {
+pub async fn run(
+  app: Box<dyn epi::App>,
+  scene: Arc<Mutex<Scene>>,
+  frame_times: Arc<Mutex<crate::History>>,
+  fps_limit: f64,
+) {
   let event_loop = winit::event_loop::EventLoop::with_user_event();
+
+  let mut last_time = crate::Time::now_millis();
+
+  let mut gpu = crate::gpu::Gpu::new(
+    winit::window::Window::new(&event_loop).unwrap(),
+    scene,
+  ).await;
 
   let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
     winit::window::WindowBuilder::new()
@@ -195,10 +209,21 @@ pub async fn run(app: Box<dyn epi::App>) {
   ).await;
 
   event_loop.run(move |event, _, control_flow| {
+    *control_flow = ControlFlow::Poll;
     match event {
       RedrawRequested(window_id) => {
         if window_id == wgpu_app.window.id() {
-          wgpu_app.render();
+          let now = crate::Time::now_millis();
+          let elapsed = now - last_time;
+          if elapsed > 1000. / fps_limit {
+            last_time = now;
+            if let Ok(mut frame_times) = frame_times.try_lock() {
+              frame_times.add(elapsed);
+            }
+
+            wgpu_app.render();
+            gpu.render();
+          }
         }
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
@@ -210,6 +235,8 @@ pub async fn run(app: Box<dyn epi::App>) {
             wgpu_app.surface_config.width = size.width;
             wgpu_app.surface_config.height = size.height;
             wgpu_app.surface.configure(&wgpu_app.device, &wgpu_app.surface_config);
+          } else {
+            gpu.resize(size);
           }
         }
         winit::event::WindowEvent::CloseRequested => {

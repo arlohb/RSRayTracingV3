@@ -4,12 +4,7 @@ mod shaders;
 pub use shaders::*;
 
 use std::sync::{Arc, Mutex};
-use winit::{
-  event::{Event, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
-  window::Window,
-  platform::unix::EventLoopExtUnix,
-};
+use winit::window::Window;
 use crate::ray_tracer::Scene;
 
 pub struct Gpu {
@@ -150,54 +145,4 @@ impl Gpu {
   pub fn request_render(&self) {
     self.window.request_redraw();
   }
-}
-
-pub async fn run(
-  scene: Arc<Mutex<Scene>>,
-  frame_times: Arc<Mutex<crate::History>>,
-  fps_limit: f64,
-) -> ! {
-  let event_loop = EventLoop::<Window>::new_any_thread();
-  let window = Window::new(&event_loop).unwrap();
-
-  let mut last_time = crate::Time::now_millis();
-
-  let mut gpu = Gpu::new(
-    window,
-    scene,
-  ).await;
-
-  event_loop.run(move |event, _, control_flow| {
-    *control_flow = ControlFlow::Poll;
-    match event {
-      Event::WindowEvent {
-        event: WindowEvent::Resized(size),
-        ..
-      } => {
-        gpu.resize(size);
-      }
-      Event::RedrawRequested(_) => {
-        gpu.render();
-      }
-      Event::WindowEvent {
-        event: WindowEvent::CloseRequested,
-        ..
-      } => {
-        *control_flow = ControlFlow::Exit;
-      },
-      _ => {
-        let now = crate::Time::now_millis();
-        let elapsed = now - last_time;
-
-        if elapsed > 1000. / fps_limit {
-          last_time = now;
-          if let Ok(mut frame_times) = frame_times.try_lock() {
-            frame_times.add(elapsed);
-          }
-
-          gpu.request_render();
-        }
-      }
-    }
-  });
 }

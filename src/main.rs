@@ -25,9 +25,5 @@ fn main() {
     crate::App::new(scene.clone(), frame_times.clone()),
   );
 
-  std::thread::spawn(move || {
-    pollster::block_on(crate::gpu::run(scene, frame_times, 240.));
-  });
-
-  pollster::block_on(crate::wgpu_app::run(app));
+  pollster::block_on(crate::wgpu_app::run(app, scene, frame_times, 240.));
 }
