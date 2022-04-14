@@ -30,7 +30,6 @@ impl epi::backend::RepaintSignal for RepaintSignal {
 }
 
 pub struct WgpuApp {
-  pub window: winit::window::Window,
   pub device: wgpu::Device,
   pub queue: wgpu::Queue,
   pub surface: wgpu::Surface,
@@ -46,7 +45,7 @@ pub struct WgpuApp {
 
 impl WgpuApp {
   pub async fn new(
-    window: winit::window::Window,
+    window: &winit::window::Window,
     app: Box<dyn epi::App>,
     repaint_signal: Arc<RepaintSignal>,
   ) -> WgpuApp {
@@ -80,14 +79,13 @@ impl WgpuApp {
     };
     surface.configure(&device, &surface_config);
 
-    let state = egui_winit::State::new(4096, &window);
+    let state = egui_winit::State::new(4096, window);
     let context = egui::Context::default();
 
     // We use the egui_wgpu_backend crate as the render backend.
     let egui_rpass = RenderPass::new(&device, surface_format, 1);
 
     WgpuApp {
-      window,
       device,
       queue,
       surface,
@@ -102,7 +100,7 @@ impl WgpuApp {
     }
   }
 
-  pub fn render(&mut self) {
+  pub fn render(&mut self, window: &winit::window::Window) {
     let output_frame = match self.surface.get_current_texture() {
       Ok(frame) => frame,
       Err(e) => {
@@ -116,7 +114,7 @@ impl WgpuApp {
 
     // Begin to draw the UI frame.
     let egui_start = Instant::now();
-    let input = self.state.take_egui_input(&self.window);
+    let input = self.state.take_egui_input(window);
     self.context.begin_frame(input);
     let app_output = epi::backend::AppOutput::default();
 
@@ -125,7 +123,7 @@ impl WgpuApp {
         name: "egui_example",
         web_info: None,
         cpu_usage: self.previous_frame_time,
-        native_pixels_per_point: Some(self.window.scale_factor() as _),
+        native_pixels_per_point: Some(window.scale_factor() as _),
         prefer_dark_mode: None,
       },
       output: app_output,
@@ -150,7 +148,7 @@ impl WgpuApp {
     let screen_descriptor = ScreenDescriptor {
       physical_width: self.surface_config.width,
       physical_height: self.surface_config.height,
-      scale_factor: self.window.scale_factor() as f32,
+      scale_factor: window.scale_factor() as f32,
     };
 
     self.egui_rpass.add_textures(&self.device, &self.queue, &output.textures_delta).expect("Failed to add egui textures");
@@ -185,23 +183,26 @@ pub async fn run(
 
   let mut last_time = crate::Time::now_millis();
 
+  let window: winit::window::Window = winit::window::Window::new(&event_loop).unwrap();
+  let egui_window = winit::window::WindowBuilder::new()
+    .with_decorations(true)
+    .with_resizable(true)
+    .with_transparent(false)
+    .with_title("egui-wgpu_winit example")
+    .with_inner_size(winit::dpi::PhysicalSize {
+      width: 800u32,
+      height: 700u32,
+    })
+    .build(&event_loop)
+    .expect("Failed to create window");
+
   let mut gpu = crate::gpu::Gpu::new(
-    winit::window::Window::new(&event_loop).unwrap(),
+    &window,
     scene,
   ).await;
 
   let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
-    winit::window::WindowBuilder::new()
-      .with_decorations(true)
-      .with_resizable(true)
-      .with_transparent(false)
-      .with_title("egui-wgpu_winit example")
-      .with_inner_size(winit::dpi::PhysicalSize {
-        width: 800u32,
-        height: 700u32,
-      })
-      .build(&event_loop)
-      .expect("Failed to create window"),
+    &egui_window,
     app,
     Arc::new(RepaintSignal(std::sync::Mutex::new(
       event_loop.create_proxy(),
@@ -212,7 +213,7 @@ pub async fn run(
     *control_flow = ControlFlow::Poll;
     match event {
       RedrawRequested(window_id) => {
-        if window_id == wgpu_app.window.id() {
+        if window_id == egui_window.id() {
           let now = crate::Time::now_millis();
           let elapsed = now - last_time;
           if elapsed > 1000. / fps_limit {
@@ -221,17 +222,17 @@ pub async fn run(
               frame_times.add(elapsed);
             }
 
-            wgpu_app.render();
-            gpu.render();
+            wgpu_app.render(&egui_window);
+            gpu.render(&window);
           }
         }
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
-        wgpu_app.window.request_redraw();
+        egui_window.request_redraw();
       }
       WindowEvent { window_id, event, .. } => match event {
         winit::event::WindowEvent::Resized(size) => {
-          if window_id == wgpu_app.window.id() {
+          if window_id == egui_window.id() {
             wgpu_app.surface_config.width = size.width;
             wgpu_app.surface_config.height = size.height;
             wgpu_app.surface.configure(&wgpu_app.device, &wgpu_app.surface_config);
@@ -243,7 +244,7 @@ pub async fn run(
           *control_flow = ControlFlow::Exit;
         }
         event => {
-          if window_id == wgpu_app.window.id() {
+          if window_id == egui_window.id() {
             // Pass the winit events to the platform integration.
             wgpu_app.state.on_event(&wgpu_app.context, &event);
           }

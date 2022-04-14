@@ -8,7 +8,6 @@ use winit::window::Window;
 use crate::ray_tracer::Scene;
 
 pub struct Gpu {
-  window: Window,
   device: wgpu::Device,
   queue: wgpu::Queue,
   surface: wgpu::Surface,
@@ -19,7 +18,7 @@ pub struct Gpu {
 
 impl Gpu {
   pub async fn new(
-    window: Window,
+    window: &Window,
     scene: Arc<Mutex<Scene>>,
   ) -> Gpu {
     let size = window.inner_size();
@@ -89,7 +88,6 @@ impl Gpu {
     surface.configure(&device, &config);
 
     Gpu {
-      window,
       device,
       queue,
       surface,
@@ -99,8 +97,8 @@ impl Gpu {
     }
   }
 
-  pub fn render(&mut self) {
-    self.connection.update_buffer(&self.queue, self.window.inner_size());
+  pub fn render(&mut self, window: &winit::window::Window) {
+    self.connection.update_buffer(&self.queue, window.inner_size());
 
     let frame = self.surface
       .get_current_texture()
@@ -118,12 +116,21 @@ impl Gpu {
           view: &view,
           resolve_target: None,
           ops: wgpu::Operations {
-            load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+            // load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+            load: wgpu::LoadOp::Load,
             store: true,
           },
         }],
         depth_stencil_attachment: None,
       });
+      // rpass.set_viewport(
+      //   0.,
+      //   0.,
+      //   500.,
+      //   500.,
+      //   0.,
+      //   1.,
+      // );
       rpass.set_pipeline(&self.render_pipeline);
       rpass.set_bind_group(0, &self.connection.bind_group, &[]);
       rpass.draw(0..6, 0..1);
@@ -138,11 +145,5 @@ impl Gpu {
     self.config.width = size.width;
     self.config.height = size.height;
     self.surface.configure(&self.device, &self.config);
-    // On macos the window needs to be redrawn manually after resizing
-    self.window.request_redraw();
-  }
-
-  pub fn request_render(&self) {
-    self.window.request_redraw();
   }
 }
