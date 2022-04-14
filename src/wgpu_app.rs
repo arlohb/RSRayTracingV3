@@ -175,44 +175,51 @@ impl WgpuApp {
 
 pub async fn run(app: Box<dyn epi::App>) {
   let event_loop = winit::event_loop::EventLoop::with_user_event();
-  let window = winit::window::WindowBuilder::new()
-    .with_decorations(true)
-    .with_resizable(true)
-    .with_transparent(false)
-    .with_title("egui-wgpu_winit example")
-    .with_inner_size(winit::dpi::PhysicalSize {
-      width: 800u32,
-      height: 700u32,
-    })
-    .build(&event_loop)
-    .expect("Failed to create window");
-  
-  let repaint_signal = Arc::new(RepaintSignal(std::sync::Mutex::new(
-    event_loop.create_proxy(),
-  )));
 
-  let mut wgpu_app = crate::wgpu_app::WgpuApp::new(window, app, repaint_signal).await;
+  let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
+    winit::window::WindowBuilder::new()
+      .with_decorations(true)
+      .with_resizable(true)
+      .with_transparent(false)
+      .with_title("egui-wgpu_winit example")
+      .with_inner_size(winit::dpi::PhysicalSize {
+        width: 800u32,
+        height: 700u32,
+      })
+      .build(&event_loop)
+      .expect("Failed to create window"),
+    app,
+    Arc::new(RepaintSignal(std::sync::Mutex::new(
+      event_loop.create_proxy(),
+    ))),
+  ).await;
 
   event_loop.run(move |event, _, control_flow| {
     match event {
-      RedrawRequested(..) => {
-        wgpu_app.render();
+      RedrawRequested(window_id) => {
+        if window_id == wgpu_app.window.id() {
+          wgpu_app.render();
+        }
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
         wgpu_app.window.request_redraw();
       }
-      WindowEvent { event, .. } => match event {
+      WindowEvent { window_id, event, .. } => match event {
         winit::event::WindowEvent::Resized(size) => {
-          wgpu_app.surface_config.width = size.width;
-          wgpu_app.surface_config.height = size.height;
-          wgpu_app.surface.configure(&wgpu_app.device, &wgpu_app.surface_config);
+          if window_id == wgpu_app.window.id() {
+            wgpu_app.surface_config.width = size.width;
+            wgpu_app.surface_config.height = size.height;
+            wgpu_app.surface.configure(&wgpu_app.device, &wgpu_app.surface_config);
+          }
         }
         winit::event::WindowEvent::CloseRequested => {
           *control_flow = ControlFlow::Exit;
         }
         event => {
-          // Pass the winit events to the platform integration.
-          wgpu_app.state.on_event(&wgpu_app.context, &event);
+          if window_id == wgpu_app.window.id() {
+            // Pass the winit events to the platform integration.
+            wgpu_app.state.on_event(&wgpu_app.context, &event);
+          }
         }
       },
       _ => (),
