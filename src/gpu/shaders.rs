@@ -22,9 +22,10 @@ fn parse_shader(bounce_limit: u32) -> String {
     .map(|line| {
       let split = line.split("//").collect::<Vec<_>>();
       if split.len() == 3 {
-        let template_name = split[1].trim();
-        let template_value = dict[template_name].as_str();
-        split[0].to_string() + template_value + split[2]
+        match dict.get(split[1].trim()) {
+          Some(template_value) => split[0].to_string() + template_value + split[2],
+          None => line.to_string(),
+        }
       } else {
         line.to_string()
       }
