@@ -83,6 +83,39 @@ var t_render: texture_2d<f32>;
 [[group(0), binding(6)]]
 var<storage, read> frame_data: FrameData;
 
+var<private> p_seed: f32 = 42.;
+var<private> p_pixel: vec2<f32> = vec2<f32>(0., 0.);
+
+fn random() -> f32 {
+  let result = fract(sin(p_seed / 100. * dot(p_pixel, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+  p_seed = p_seed + 1.;
+  return result;
+}
+
+fn get_tangent_space(normal: vec3<f32>) -> mat3x3<f32> {
+  var helper = vec3<f32>(1., 0., 0.);
+  if (abs(normal.x) > 0.99) {
+    helper = vec3<f32>(0., 0., 1.);
+  }
+
+  let tangent = normalize(cross(normal, helper));
+  let bitangent = normalize(cross(normal, tangent));
+  return mat3x3<f32>(tangent, bitangent, normal);
+}
+
+fn random_in_hemisphere(normal: vec3<f32>) -> vec3<f32> {
+  let cos_theta = random();
+  let sin_theta = sqrt(max(0., 1. - cos_theta * cos_theta));
+  let phi = 2. * PI * random();
+  let tangent_space_dir = vec3<f32>(
+    cos(phi) * sin_theta,
+    sin(phi) * sin_theta,
+    cos_theta
+  );
+
+  return tangent_space_dir * get_tangent_space(normal);
+}
+
 // only returns the smallest value
 fn solve_quadratic(a: f32, b: f32, c: f32) -> f32 {
   let discriminant = pow(b, 2.) - (4. * a * c);
@@ -309,6 +342,9 @@ fn create_ray(coord: vec2<f32>) -> Ray {
 fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f32> {
   let x = coord_in.x + frame_data.jitter.x;
   let y = coord_in.y + frame_data.jitter.y;
+
+  p_pixel = vec2<f32>(x, y);
+
   let coord = vec2<f32>(x / f32(config.width), y / f32(config.height));
 
   let ray = create_ray(coord);
@@ -322,4 +358,6 @@ fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f3
   let mixed = pixel * opacity + previous * (1. - opacity);
 
   return vec4<f32>(mixed, 1.);
+  // let hemisphere_sample = random_in_hemisphere(vec3<f32>(0., 0., 1.));
+  // return vec4<f32>(abs(hemisphere_sample), 1.);
 }
