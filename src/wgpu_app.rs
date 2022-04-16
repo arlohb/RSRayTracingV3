@@ -44,7 +44,7 @@ pub struct WgpuApp {
 }
 
 impl WgpuApp {
-  pub async fn new(
+  pub fn new(
     shared_gpu: Arc<SharedGpu>,
     window: &winit::window::Window,
     repaint_signal: Arc<RepaintSignal>,
@@ -163,7 +163,7 @@ impl WgpuApp {
   }
 }
 
-pub async fn run(
+pub fn run(
   scene: Arc<Mutex<Scene>>,
   frame_times: Arc<Mutex<crate::History>>,
   fps_limit: f64,
@@ -184,9 +184,9 @@ pub async fn run(
     .build(&event_loop)
     .expect("Failed to create window");
 
-  let shared_gpu = Arc::new(SharedGpu::new(&window).await);
+  let shared_gpu = Arc::new(SharedGpu::new(&window));
 
-  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone()).await;
+  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone());
 
   let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
     shared_gpu.clone(),
@@ -196,7 +196,7 @@ pub async fn run(
     ))),
     scene.clone(),
     frame_times.clone(),
-  ).await;
+  );
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Poll;

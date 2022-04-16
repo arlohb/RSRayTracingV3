@@ -18,7 +18,7 @@ pub struct Gpu {
 }
 
 impl Gpu {
-  pub async fn new(
+  pub fn new(
     shared_gpu: Arc<SharedGpu>,
     scene: Arc<Mutex<Scene>>,
   ) -> Gpu {
