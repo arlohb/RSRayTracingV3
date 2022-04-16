@@ -13,7 +13,6 @@ use crate::ray_tracer::Scene;
 pub struct Gpu {
   shared_gpu: Arc<SharedGpu>,
   render_pipeline: wgpu::RenderPipeline,
-  output_view: wgpu::TextureView,
   connection: Connection,
 }
 
@@ -21,7 +20,6 @@ impl Gpu {
   pub fn new(
     shared_gpu: Arc<SharedGpu>,
     scene: Arc<Mutex<Scene>>,
-    initial_size: (u32, u32),
   ) -> Gpu {
     let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue);
 
@@ -30,25 +28,6 @@ impl Gpu {
       bind_group_layouts: &[&connection.bind_group_layout],
       push_constant_ranges: &[],
     });
-
-    let output_descriptor = wgpu::TextureDescriptor {
-      size: wgpu::Extent3d {
-        width: initial_size.0,
-        height: initial_size.1,
-        depth_or_array_layers: 1,
-      },
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: wgpu::TextureDimension::D2,
-      format: wgpu::TextureFormat::Rgba8UnormSrgb,
-      usage: wgpu::TextureUsages::COPY_SRC
-        | wgpu::TextureUsages::RENDER_ATTACHMENT
-        | wgpu::TextureUsages::TEXTURE_BINDING,
-      label: None,
-    };
-
-    let output = shared_gpu.device.create_texture(&output_descriptor);
-    let output_view = output.create_view(&Default::default());
 
     let render_pipeline = shared_gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
       label: None,
@@ -78,7 +57,6 @@ impl Gpu {
     Gpu {
       shared_gpu,
       render_pipeline,
-      output_view,
       connection,
     }
   }
@@ -86,7 +64,7 @@ impl Gpu {
   pub fn render(
     &mut self,
     egui_rpass: &mut egui_wgpu_backend::RenderPass,
-    render_target: &mut crate::gpu::RenderTarget,
+    render_target: &mut RenderTarget,
   ) {
     self.connection.update_buffer(&self.shared_gpu.queue, render_target.size);
 
@@ -97,7 +75,7 @@ impl Gpu {
       let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: None,
         color_attachments: &[wgpu::RenderPassColorAttachment {
-          view: &self.output_view,
+          view: &render_target.render_view,
           resolve_target: None,
           ops: wgpu::Operations {
             load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -116,27 +94,6 @@ impl Gpu {
     render_target.update(
       &self.shared_gpu.device,
       egui_rpass,
-      &self.output_view,
     );
-  }
-
-  pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
-    let output_descriptor = wgpu::TextureDescriptor {
-      size: wgpu::Extent3d {
-        width: size.width,
-        height: size.height,
-        depth_or_array_layers: 1,
-      },
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: wgpu::TextureDimension::D2,
-      format: wgpu::TextureFormat::Rgba8UnormSrgb,
-      usage: wgpu::TextureUsages::COPY_SRC
-        | wgpu::TextureUsages::RENDER_ATTACHMENT,
-      label: None,
-    };
-
-    let output = self.shared_gpu.device.create_texture(&output_descriptor);
-    self.output_view = output.create_view(&Default::default());
   }
 }

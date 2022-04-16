@@ -66,7 +66,7 @@ impl App {
     let state = egui_winit::State::new(4096, window);
     let context = egui::Context::default();
 
-    let render_target = crate::gpu::RenderTarget::new(initial_render_size);
+    let render_target = crate::gpu::RenderTarget::new(&shared_gpu, initial_render_size);
 
     let ui = crate::Ui::new(scene, frame_times);
 
@@ -121,7 +121,12 @@ impl App {
     });
 
     // Draw the demo application.
-    self.ui.update(&self.context, &frame, &mut self.render_target);
+    self.ui.update(
+      &self.context,
+      &frame,
+      &mut self.render_target,
+      &self.shared_gpu,
+    );
 
     // End the UI frame. We could now handle the output and draw the UI with the backend.
     let output = self.context.end_frame();
@@ -188,7 +193,7 @@ pub fn run(
 
   let shared_gpu = Arc::new(SharedGpu::new(&window));
 
-  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone(), initial_render_size);
+  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone());
 
   let mut app = crate::app::App::new(
     shared_gpu.clone(),
@@ -204,42 +209,34 @@ pub fn run(
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Poll;
     match event {
-      RedrawRequested(window_id) => {
-        if window_id == window.id() {
-          let now = crate::utils::time::now_millis();
-          let elapsed = now - last_time;
-          if elapsed > 1000. / fps_limit {
-            last_time = now;
-            if let Ok(mut frame_times) = frame_times.try_lock() {
-              frame_times.add(elapsed);
-            }
-
-            gpu.render(&mut app.egui_rpass, &mut app.render_target);
-            app.render(&window);
+      RedrawRequested(..) => {
+        let now = crate::utils::time::now_millis();
+        let elapsed = now - last_time;
+        if elapsed > 1000. / fps_limit {
+          last_time = now;
+          if let Ok(mut frame_times) = frame_times.try_lock() {
+            frame_times.add(elapsed);
           }
+
+          gpu.render(&mut app.egui_rpass, &mut app.render_target);
+          app.render(&window);
         }
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
         window.request_redraw();
       }
-      WindowEvent { window_id, event, .. } => match event {
+      WindowEvent { event, .. } => match event {
         winit::event::WindowEvent::Resized(size) => {
-          if window_id == window.id() {
-            app.surface_config.width = size.width;
-            app.surface_config.height = size.height;
-            shared_gpu.surface.configure(&shared_gpu.device, &app.surface_config);
-          } else {
-            gpu.resize(size);
-          }
+          app.surface_config.width = size.width;
+          app.surface_config.height = size.height;
+          shared_gpu.surface.configure(&shared_gpu.device, &app.surface_config);
         }
         winit::event::WindowEvent::CloseRequested => {
           *control_flow = ControlFlow::Exit;
         }
         event => {
-          if window_id == window.id() {
-            // Pass the winit events to the platform integration.
-            app.state.on_event(&app.context, &event);
-          }
+          // Pass the winit events to the platform integration.
+          app.state.on_event(&app.context, &event);
         }
       },
       _ => (),

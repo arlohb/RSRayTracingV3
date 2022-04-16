@@ -30,6 +30,7 @@ impl Ui {
     ctx: &egui::Context,
     _: &epi::Frame,
     render_target: &mut crate::gpu::RenderTarget,
+    shared_gpu: &crate::gpu::SharedGpu,
   ) {
     let now = now_millis();
     // delta_time is in seconds
@@ -63,28 +64,28 @@ impl Ui {
       });
     }
 
-    if let Some(id) = render_target.id {
-      egui::CentralPanel::default().show(ctx, |ui| {
-        egui::Resize::default()
-          .default_size([render_target.size.0 as f32, render_target.size.1 as f32])
-          .min_size([1., 1.])
-          .show(ui, |ui| {
-            ui.image(id, [render_target.size.0 as f32, render_target.size.1 as f32]);   
-       
-            let size = (ui.available_size().x as u32, ui.available_size().y as u32);
-            if size != render_target.size {
-              
-            }
-          })
-      });
-    }
-
     egui::SidePanel::right("panel").show(ctx, |ui| {
       ui.columns(2, |cols| {
         object_panel(&mut cols[0], &mut self.scene);
         settings_panel(&mut cols[1], self.frame_times.clone(), &mut self.scene);
       });
     });
+
+    if let Some(id) = render_target.id {
+      egui::CentralPanel::default().show(ctx, |ui| {
+        egui::Resize::default()
+          .default_size([render_target.size.0 as f32, render_target.size.1 as f32])
+          .min_size([1., 1.])
+          .show(ui, |ui| {
+            let size = (ui.available_size().x as u32, ui.available_size().y as u32);
+            if size != render_target.size {
+              render_target.resize(shared_gpu, size);
+            }
+
+            ui.image(id, [render_target.size.0 as f32, render_target.size.1 as f32]);
+          })
+      });
+    }
 
     if let Ok(mut scene) = self.g_scene.try_lock() {
       *scene = self.scene.clone();
