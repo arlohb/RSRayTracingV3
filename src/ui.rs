@@ -75,7 +75,5 @@ impl Ui {
     if let Ok(mut scene) = self.g_scene.try_lock() {
       *scene = self.scene.clone();
     }
-
-    ctx.request_repaint();
   }
 }
