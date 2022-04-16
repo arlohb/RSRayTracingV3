@@ -21,6 +21,7 @@ impl Gpu {
   pub fn new(
     shared_gpu: Arc<SharedGpu>,
     scene: Arc<Mutex<Scene>>,
+    initial_size: (u32, u32),
   ) -> Gpu {
     let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue);
 
@@ -32,8 +33,8 @@ impl Gpu {
 
     let output_descriptor = wgpu::TextureDescriptor {
       size: wgpu::Extent3d {
-        width: 500,
-        height: 500,
+        width: initial_size.0,
+        height: initial_size.1,
         depth_or_array_layers: 1,
       },
       mip_level_count: 1,
@@ -87,7 +88,7 @@ impl Gpu {
     egui_rpass: &mut egui_wgpu_backend::RenderPass,
     render_texture: &mut crate::gpu::RenderTexture,
   ) {
-    self.connection.update_buffer(&self.shared_gpu.queue, winit::dpi::PhysicalSize::new(500, 500));
+    self.connection.update_buffer(&self.shared_gpu.queue, render_texture.size);
 
     let mut encoder =
       self.shared_gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });

@@ -9,7 +9,7 @@ pub struct Connection {
 
   pub scene: Arc<Mutex<Scene>>,
   pub last_scene: Scene,
-  pub last_size: winit::dpi::PhysicalSize<u32>,
+  pub last_size: (u32, u32),
 
   pub objects: wgpu::Buffer,
   pub lights: wgpu::Buffer,
@@ -192,19 +192,19 @@ impl Connection {
       bind_group_layout,
       scene: scene.clone(),
       last_scene: scene.lock().unwrap().clone(),
-      last_size: winit::dpi::PhysicalSize::new(0, 0),
+      last_size: (0, 0),
       objects,
       lights,
       config,
     }
   }
 
-  pub fn update_buffer(&mut self, queue: &wgpu::Queue, size: winit::dpi::PhysicalSize<u32>) {
+  pub fn update_buffer(&mut self, queue: &wgpu::Queue, size: (u32, u32)) {
     let scene = self.scene.lock().unwrap().clone();
 
     if (scene != self.last_scene) | (size != self.last_size) {
       let (object_bytes, light_bytes, config_bytes) =
-        scene.as_bytes(size.width, size.height);
+        scene.as_bytes(size.0, size.1);
 
       queue.write_buffer(&self.objects, 0, object_bytes.as_slice());
       queue.write_buffer(&self.lights, 0, light_bytes.as_slice());

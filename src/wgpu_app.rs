@@ -50,6 +50,7 @@ impl WgpuApp {
     repaint_signal: Arc<RepaintSignal>,
     scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::History>>,
+    initial_render_size: (u32, u32),
   ) -> WgpuApp {
     let size = window.inner_size();
     let surface_format = shared_gpu.surface.get_preferred_format(&shared_gpu.adapter).expect("Surface format not supported");
@@ -65,7 +66,7 @@ impl WgpuApp {
     let state = egui_winit::State::new(4096, window);
     let context = egui::Context::default();
 
-    let render_texture = crate::gpu::RenderTexture::new();
+    let render_texture = crate::gpu::RenderTexture::new(initial_render_size);
 
     let ui = crate::Ui::new(scene, frame_times);
 
@@ -167,6 +168,8 @@ pub fn run(
   scene: Arc<Mutex<Scene>>,
   frame_times: Arc<Mutex<crate::History>>,
   fps_limit: f64,
+  initial_window_size: (u32, u32),
+  initial_render_size: (u32, u32),
 ) {
   let event_loop = winit::event_loop::EventLoop::with_user_event();
 
@@ -178,15 +181,15 @@ pub fn run(
     .with_transparent(false)
     .with_title("egui-wgpu_winit example")
     .with_inner_size(winit::dpi::PhysicalSize {
-      width: 1200u32,
-      height: 800u32,
+      width: initial_window_size.0,
+      height: initial_window_size.1,
     })
     .build(&event_loop)
     .expect("Failed to create window");
 
   let shared_gpu = Arc::new(SharedGpu::new(&window));
 
-  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone());
+  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone(), initial_render_size);
 
   let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
     shared_gpu.clone(),
@@ -196,6 +199,7 @@ pub fn run(
     ))),
     scene,
     frame_times.clone(),
+    initial_render_size,
   );
 
   event_loop.run(move |event, _, control_flow| {

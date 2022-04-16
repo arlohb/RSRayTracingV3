@@ -21,5 +21,11 @@ fn main() {
   let frame_times = Arc::new(Mutex::new(History::new(5_000.)));
   let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
-  crate::wgpu_app::run(scene, frame_times, 240.);
+  crate::wgpu_app::run(
+    scene,
+    frame_times,
+    240.,
+    (1200, 800),
+    (500, 500),
+  );
 }

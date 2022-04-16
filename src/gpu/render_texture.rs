@@ -1,16 +1,14 @@
 #[derive(Clone, Copy)]
 pub struct RenderTexture {
   pub id: Option<egui::TextureId>,
-  pub width: u32,
-  pub height: u32,
+  pub size: (u32, u32),
 }
 
 impl RenderTexture {
-  pub fn new() -> RenderTexture {
+  pub fn new(initial_size: (u32, u32)) -> RenderTexture {
     RenderTexture {
       id: None,
-      width: 500,
-      height: 500,
+      size: initial_size,
     }
   }
 
@@ -37,11 +35,5 @@ impl RenderTexture {
         ));
       }
     }
-  }
-}
-
-impl Default for RenderTexture {
-  fn default() -> RenderTexture {
-    RenderTexture::new()
   }
 }

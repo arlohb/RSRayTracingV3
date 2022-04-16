@@ -61,7 +61,7 @@ impl Ui {
 
     egui::CentralPanel::default().show(ctx, |ui| {
       if let Some(id) = render_texture.id {
-        ui.image(id, [render_texture.width as f32, render_texture.height as f32]);
+        ui.image(id, [render_texture.size.0 as f32, render_texture.size.1 as f32]);
       }
     });
 
