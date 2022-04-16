@@ -37,7 +37,7 @@ pub struct WgpuApp {
   pub state: egui_winit::State,
   pub context: egui::Context,
   pub egui_rpass: RenderPass,
-  pub app: crate::ui::Ui,
+  pub ui: crate::ui::Ui,
   pub previous_frame_time: Option<f32>,
   pub repaint_signal: Arc<RepaintSignal>,
   pub render_texture: crate::gpu::RenderTexture,
@@ -67,7 +67,7 @@ impl WgpuApp {
 
     let render_texture = crate::gpu::RenderTexture::new();
 
-    let app = crate::Ui::new(scene, frame_times);
+    let ui = crate::Ui::new(scene, frame_times);
 
     // We use the egui_wgpu_backend crate as the render backend.
     let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);
@@ -79,7 +79,7 @@ impl WgpuApp {
       state,
       context,
       egui_rpass,
-      app,
+      ui,
       previous_frame_time: None,
       repaint_signal,
       render_texture,
@@ -121,7 +121,7 @@ impl WgpuApp {
     });
 
     // Draw the demo application.
-    self.app.update(&self.context, &frame, render_texture);
+    self.ui.update(&self.context, &frame, render_texture);
 
     // End the UI frame. We could now handle the output and draw the UI with the backend.
     let output = self.context.end_frame();
