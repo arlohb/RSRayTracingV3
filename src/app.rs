@@ -110,7 +110,7 @@ impl App {
 
     let frame =  epi::Frame::new(epi::backend::FrameData {
       info: epi::IntegrationInfo {
-        name: "egui_example",
+        name: "ray_tracer",
         web_info: None,
         cpu_usage: self.previous_frame_time,
         native_pixels_per_point: Some(window.scale_factor() as _),
@@ -178,7 +178,7 @@ pub fn run(
     .with_decorations(true)
     .with_resizable(true)
     .with_transparent(false)
-    .with_title("egui-wgpu_winit example")
+    .with_title("Ray Tracer")
     .with_inner_size(winit::dpi::PhysicalSize {
       width: initial_window_size.0,
       height: initial_window_size.1,
