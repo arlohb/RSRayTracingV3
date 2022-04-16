@@ -1,11 +1,12 @@
 pub struct RenderTarget {
+  pub render_texture: wgpu::Texture,
   pub render_view: wgpu::TextureView,
   pub id: Option<egui::TextureId>,
   pub size: (u32, u32),
 }
 
 impl RenderTarget {
-  pub fn create_render_view(shared_gpu: &super::SharedGpu, size: (u32, u32)) -> wgpu::TextureView {
+  pub fn create_render_texture(shared_gpu: &super::SharedGpu, size: (u32, u32)) -> (wgpu::Texture, wgpu::TextureView) {
     let render_descriptor = wgpu::TextureDescriptor {
       size: wgpu::Extent3d {
         width: size.0,
@@ -25,14 +26,17 @@ impl RenderTarget {
     let render_texture = shared_gpu.device.create_texture(&render_descriptor);
     let render_view = render_texture.create_view(&Default::default());
 
-    render_view
+    (render_texture, render_view)
   }
 
   pub fn new(shared_gpu: &super::SharedGpu, initial_size: (u32, u32)) -> RenderTarget {
+    let (render_texture, render_view) = RenderTarget::create_render_texture(shared_gpu, initial_size);
+
     RenderTarget {
       id: None,
       size: initial_size,
-      render_view: RenderTarget::create_render_view(shared_gpu, initial_size),
+      render_texture,
+      render_view,
     }
   }
 
@@ -66,6 +70,6 @@ impl RenderTarget {
     size: (u32, u32),
   ) {
     self.size = size;
-    self.render_view = RenderTarget::create_render_view(shared_gpu, size);
+    (self.render_texture, self.render_view) = RenderTarget::create_render_texture(shared_gpu, size);
   }
 }

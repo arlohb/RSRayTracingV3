@@ -52,6 +52,11 @@ struct Ray {
   direction: vec3<f32>;
 };
 
+struct FrameData {
+  jitter: vec2<f32>;
+  progressive_count: u32;
+};
+
 let PI = 3.141592654;
 let EPSILON = 0.0001;
 let BOUNCE_LIMIT = // bounce_limit //;
@@ -67,10 +72,16 @@ var<storage, read> lights: Lights;
 var<storage, read> config: Config;
 
 [[group(0), binding(3)]]
-var t_hdri: texture_2d<f32>;
+var s_tex: sampler;
 
 [[group(0), binding(4)]]
-var s_hdri: sampler;
+var t_hdri: texture_2d<f32>;
+
+[[group(0), binding(5)]]
+var t_render: texture_2d<f32>;
+
+[[group(0), binding(6)]]
+var<storage, read> frame_data: FrameData;
 
 // only returns the smallest value
 fn solve_quadratic(a: f32, b: f32, c: f32) -> f32 {
@@ -205,7 +216,7 @@ fn trace_ray(ray: ptr<function, Ray>, metallic_stack: ptr<function, array<f32, B
   let u = 0.5 + (atan2((*ray).direction.x, (*ray).direction.z) / (2. * PI));
   let v = 0.5 + (asin(-(*ray).direction.y) / PI);
 
-  let hdri = textureSample(t_hdri, s_hdri, vec2<f32>(u, v)).xyz;
+  let hdri = textureSample(t_hdri, s_tex, vec2<f32>(u, v)).xyz;
 
   if (object_index == -1) {
     (*metallic_stack)[index] = 0.;
@@ -296,11 +307,19 @@ fn create_ray(coord: vec2<f32>) -> Ray {
 
 [[stage(fragment)]]
 fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-  let coord = vec2<f32>(coord_in.x / f32(config.width), coord_in.y / f32(config.height));
+  let x = coord_in.x + frame_data.jitter.x;
+  let y = coord_in.y + frame_data.jitter.y;
+  let coord = vec2<f32>(x / f32(config.width), y / f32(config.height));
 
   let ray = create_ray(coord);
 
   let pixel = trace_ray_with_reflections(ray);
 
-  return vec4<f32>(pixel, 1.);
+  let previous = textureSample(t_render, s_tex, vec2<f32>(coord.x, coord.y)).xyz;
+
+  let opacity = 1. / (f32(frame_data.progressive_count) + 1.);
+
+  let mixed = pixel * opacity + previous * (1. - opacity);
+
+  return vec4<f32>(mixed, 1.);
 }

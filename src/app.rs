@@ -193,18 +193,18 @@ pub fn run(
 
   let shared_gpu = Arc::new(SharedGpu::new(&window));
 
-  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone());
-
   let mut app = crate::app::App::new(
     shared_gpu.clone(),
     &window,
     Arc::new(RepaintSignal(std::sync::Mutex::new(
       event_loop.create_proxy(),
     ))),
-    scene,
+    scene.clone(),
     frame_times.clone(),
     initial_render_size,
   );
+
+  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene, &app.render_target);
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Poll;
