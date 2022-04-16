@@ -1,22 +1,26 @@
 use std::sync::{Mutex, Arc};
-use crate::{ray_tracer::*, panels::*, Time};
+use crate::{
+  ray_tracer::*,
+  panels::*,
+  utils::time::now_millis,
+};
 
 pub struct Ui {
   g_scene: Arc<Mutex<Scene>>,
   scene: Scene,
   last_time: f64,
-  frame_times: Arc<Mutex<crate::History>>,
+  frame_times: Arc<Mutex<crate::utils::history::History>>,
 }
 
 impl Ui {
   pub fn new(
     g_scene: Arc<Mutex<Scene>>,
-    frame_times: Arc<Mutex<crate::History>>,
+    frame_times: Arc<Mutex<crate::utils::history::History>>,
   ) -> Self {
     Self {
       g_scene: g_scene.clone(),
       scene: g_scene.lock().unwrap().clone(),
-      last_time: Time::now_millis(),
+      last_time: now_millis(),
       frame_times,
     }
   }
@@ -25,9 +29,9 @@ impl Ui {
     &mut self,
     ctx: &egui::Context,
     _: &epi::Frame,
-    render_texture: crate::gpu::RenderTexture,
+    render_target: &mut crate::gpu::RenderTarget,
   ) {
-    let now = Time::now_millis();
+    let now = now_millis();
     // delta_time is in seconds
     let delta_time = (now - self.last_time) as f32 / 1000.;
     self.last_time = now;
@@ -59,11 +63,21 @@ impl Ui {
       });
     }
 
-    egui::CentralPanel::default().show(ctx, |ui| {
-      if let Some(id) = render_texture.id {
-        ui.image(id, [render_texture.size.0 as f32, render_texture.size.1 as f32]);
-      }
-    });
+    if let Some(id) = render_target.id {
+      egui::CentralPanel::default().show(ctx, |ui| {
+        egui::Resize::default()
+          .default_size([render_target.size.0 as f32, render_target.size.1 as f32])
+          .min_size([1., 1.])
+          .show(ui, |ui| {
+            ui.image(id, [render_target.size.0 as f32, render_target.size.1 as f32]);   
+       
+            let size = (ui.available_size().x as u32, ui.available_size().y as u32);
+            if size != render_target.size {
+              
+            }
+          })
+      });
+    }
 
     egui::SidePanel::right("panel").show(ctx, |ui| {
       ui.columns(2, |cols| {

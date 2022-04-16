@@ -144,7 +144,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
 
 pub fn settings_panel (
   ui: &mut egui::Ui,
-  frame_times: Arc<Mutex<crate::History>>,
+  frame_times: Arc<Mutex<crate::utils::history::History>>,
   scene: &mut Scene,
 ) {
   ui.heading("Fps");
@@ -192,8 +192,8 @@ pub fn settings_panel (
 
   egui::ScrollArea::vertical().id_source("Debug").show(ui, |ui| {
     let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(400, 300);
-    ui.label(crate::utils::print_bytes(&object_bytes));
-    ui.label(crate::utils::print_bytes(&light_bytes));
-    ui.label(crate::utils::print_bytes(&config_bytes));
+    ui.label(crate::utils::bytes::print_bytes(&object_bytes));
+    ui.label(crate::utils::bytes::print_bytes(&light_bytes));
+    ui.label(crate::utils::bytes::print_bytes(&config_bytes));
   });
 }

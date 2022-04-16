@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
-use crate::ray_tracer::{
-  Vec3,
-  bytes_concat_n,
-};
+use super::Vec3;
 
-use super::utils::tuple_bytes;
+use crate::utils::bytes::*;
 
 /// These parameters influence how light interacts with the object.
 #[derive(Deserialize, Serialize, Clone, PartialEq)]

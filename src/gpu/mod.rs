@@ -4,8 +4,8 @@ mod shaders;
 pub use shaders::*;
 pub mod shared_gpu;
 pub use shared_gpu::SharedGpu;
-pub mod render_texture;
-pub use render_texture::RenderTexture;
+pub mod render_target;
+pub use render_target::RenderTarget;
 
 use std::sync::{Arc, Mutex};
 use crate::ray_tracer::Scene;
@@ -63,7 +63,7 @@ impl Gpu {
         entry_point: "fs_main",
         targets: &[
           wgpu::ColorTargetState {
-            format: output_descriptor.format,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             blend: None,
             write_mask: wgpu::ColorWrites::ALL,
           }
@@ -86,9 +86,9 @@ impl Gpu {
   pub fn render(
     &mut self,
     egui_rpass: &mut egui_wgpu_backend::RenderPass,
-    render_texture: &mut crate::gpu::RenderTexture,
+    render_target: &mut crate::gpu::RenderTarget,
   ) {
-    self.connection.update_buffer(&self.shared_gpu.queue, render_texture.size);
+    self.connection.update_buffer(&self.shared_gpu.queue, render_target.size);
 
     let mut encoder =
       self.shared_gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -113,7 +113,7 @@ impl Gpu {
 
     self.shared_gpu.queue.submit(Some(encoder.finish()));
 
-    render_texture.update(
+    render_target.update(
       &self.shared_gpu.device,
       egui_rpass,
       &self.output_view,

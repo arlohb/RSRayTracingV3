@@ -1,7 +1,8 @@
 use std::ops;
 use serde::{Deserialize, Serialize};
 
-use crate::ray_tracer::{ Mat44, bytes_concat_n };
+use super::Mat44;
+use crate::utils::bytes::*;
 
 /// Represents a point, vector, or normal in 3D space.
 #[derive(Debug, Copy, Clone, Deserialize, Serialize)]

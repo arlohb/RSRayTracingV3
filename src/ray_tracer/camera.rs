@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::ray_tracer::*;
+use super::*;
 
 /// Stores information about the camera in a scene.
 #[derive(Deserialize, Serialize, Clone, PartialEq)]

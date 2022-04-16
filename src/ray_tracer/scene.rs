@@ -1,6 +1,7 @@
 use rand_distr::Distribution;
 use serde::{Deserialize, Serialize};
-use crate::ray_tracer::*;
+use super::*;
+use crate::utils::bytes::*;
 
 /// Stores all the information about a scene
 #[derive(Deserialize, Serialize, Clone)]

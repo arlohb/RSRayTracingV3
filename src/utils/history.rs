@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use crate::Time;
+use super::time::now_millis;
 
 #[derive(Clone)]
 pub struct Frame {
@@ -16,7 +16,7 @@ impl Frame {
   }
 
   pub fn age(&self) -> f64 {
-    Time::now_millis() - self.time
+    now_millis() - self.time
   }
 }
 
@@ -42,7 +42,7 @@ impl History {
   }
 
   pub fn add(&mut self, value: f64) {
-    let now = Time::now_millis();
+    let now = now_millis();
     self.values.push_back(Frame::new(now, value));
 
     self.flush();

@@ -30,7 +30,7 @@ impl epi::backend::RepaintSignal for RepaintSignal {
   }
 }
 
-pub struct WgpuApp {
+pub struct App {
   pub shared_gpu: Arc<SharedGpu>,
   pub surface_config: wgpu::SurfaceConfiguration,
   pub surface_format: wgpu::TextureFormat,
@@ -40,18 +40,18 @@ pub struct WgpuApp {
   pub ui: crate::ui::Ui,
   pub previous_frame_time: Option<f32>,
   pub repaint_signal: Arc<RepaintSignal>,
-  pub render_texture: crate::gpu::RenderTexture,
+  pub render_target: crate::gpu::RenderTarget,
 }
 
-impl WgpuApp {
+impl App {
   pub fn new(
     shared_gpu: Arc<SharedGpu>,
     window: &winit::window::Window,
     repaint_signal: Arc<RepaintSignal>,
     scene: Arc<Mutex<Scene>>,
-    frame_times: Arc<Mutex<crate::History>>,
+    frame_times: Arc<Mutex<crate::utils::history::History>>,
     initial_render_size: (u32, u32),
-  ) -> WgpuApp {
+  ) -> App {
     let size = window.inner_size();
     let surface_format = shared_gpu.surface.get_preferred_format(&shared_gpu.adapter).expect("Surface format not supported");
     let surface_config = wgpu::SurfaceConfiguration {
@@ -66,14 +66,14 @@ impl WgpuApp {
     let state = egui_winit::State::new(4096, window);
     let context = egui::Context::default();
 
-    let render_texture = crate::gpu::RenderTexture::new(initial_render_size);
+    let render_target = crate::gpu::RenderTarget::new(initial_render_size);
 
     let ui = crate::Ui::new(scene, frame_times);
 
     // We use the egui_wgpu_backend crate as the render backend.
     let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);
 
-    WgpuApp {
+    App {
       shared_gpu,
       surface_config,
       surface_format,
@@ -83,14 +83,13 @@ impl WgpuApp {
       ui,
       previous_frame_time: None,
       repaint_signal,
-      render_texture,
+      render_target,
     }
   }
 
   pub fn render(
     &mut self,
     window: &winit::window::Window,
-    render_texture: crate::gpu::RenderTexture,
   ) {
     let output_frame = match self.shared_gpu.surface.get_current_texture() {
       Ok(frame) => frame,
@@ -122,7 +121,7 @@ impl WgpuApp {
     });
 
     // Draw the demo application.
-    self.ui.update(&self.context, &frame, render_texture);
+    self.ui.update(&self.context, &frame, &mut self.render_target);
 
     // End the UI frame. We could now handle the output and draw the UI with the backend.
     let output = self.context.end_frame();
@@ -166,14 +165,14 @@ impl WgpuApp {
 
 pub fn run(
   scene: Arc<Mutex<Scene>>,
-  frame_times: Arc<Mutex<crate::History>>,
+  frame_times: Arc<Mutex<crate::utils::history::History>>,
   fps_limit: f64,
   initial_window_size: (u32, u32),
   initial_render_size: (u32, u32),
 ) {
   let event_loop = winit::event_loop::EventLoop::with_user_event();
 
-  let mut last_time = crate::Time::now_millis();
+  let mut last_time = crate::utils::time::now_millis();
 
   let window = winit::window::WindowBuilder::new()
     .with_decorations(true)
@@ -191,7 +190,7 @@ pub fn run(
 
   let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone(), initial_render_size);
 
-  let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
+  let mut app = crate::app::App::new(
     shared_gpu.clone(),
     &window,
     Arc::new(RepaintSignal(std::sync::Mutex::new(
@@ -207,7 +206,7 @@ pub fn run(
     match event {
       RedrawRequested(window_id) => {
         if window_id == window.id() {
-          let now = crate::Time::now_millis();
+          let now = crate::utils::time::now_millis();
           let elapsed = now - last_time;
           if elapsed > 1000. / fps_limit {
             last_time = now;
@@ -215,8 +214,8 @@ pub fn run(
               frame_times.add(elapsed);
             }
 
-            gpu.render(&mut wgpu_app.egui_rpass, &mut wgpu_app.render_texture);
-            wgpu_app.render(&window, wgpu_app.render_texture);
+            gpu.render(&mut app.egui_rpass, &mut app.render_target);
+            app.render(&window);
           }
         }
       }
@@ -226,9 +225,9 @@ pub fn run(
       WindowEvent { window_id, event, .. } => match event {
         winit::event::WindowEvent::Resized(size) => {
           if window_id == window.id() {
-            wgpu_app.surface_config.width = size.width;
-            wgpu_app.surface_config.height = size.height;
-            shared_gpu.surface.configure(&shared_gpu.device, &wgpu_app.surface_config);
+            app.surface_config.width = size.width;
+            app.surface_config.height = size.height;
+            shared_gpu.surface.configure(&shared_gpu.device, &app.surface_config);
           } else {
             gpu.resize(size);
           }
@@ -239,7 +238,7 @@ pub fn run(
         event => {
           if window_id == window.id() {
             // Pass the winit events to the platform integration.
-            wgpu_app.state.on_event(&wgpu_app.context, &event);
+            app.state.on_event(&app.context, &event);
           }
         }
       },

@@ -1,12 +1,11 @@
-#[derive(Clone, Copy)]
-pub struct RenderTexture {
+pub struct RenderTarget {
   pub id: Option<egui::TextureId>,
   pub size: (u32, u32),
 }
 
-impl RenderTexture {
-  pub fn new(initial_size: (u32, u32)) -> RenderTexture {
-    RenderTexture {
+impl RenderTarget {
+  pub fn new(initial_size: (u32, u32)) -> RenderTarget {
+    RenderTarget {
       id: None,
       size: initial_size,
     }
@@ -35,5 +34,11 @@ impl RenderTexture {
         ));
       }
     }
+  }
+
+  pub fn resize(
+    &mut self
+  ) {
+
   }
 }
