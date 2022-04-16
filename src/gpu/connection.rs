@@ -247,7 +247,7 @@ impl Connection {
         },
         wgpu::BindGroupEntry {
           binding: 5,
-          resource: wgpu::BindingResource::TextureView(&render_view.clone()),
+          resource: wgpu::BindingResource::TextureView(render_view),
         },
         wgpu::BindGroupEntry {
           binding: 6,

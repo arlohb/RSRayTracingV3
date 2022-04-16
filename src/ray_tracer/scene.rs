@@ -79,7 +79,7 @@ impl Scene {
     sphere_count: u32,
     seed: Option<u64>,
   ) -> Scene {
-    let seed = seed.unwrap_or(rand::random::<u64>());
+    let seed = seed.unwrap_or_else(rand::random::<u64>);
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 
     let mut objects: Vec<Object> = vec![];
