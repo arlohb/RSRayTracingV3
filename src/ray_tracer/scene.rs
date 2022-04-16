@@ -1,3 +1,4 @@
+use rand::{Rng,SeedableRng};
 use rand_distr::Distribution;
 use serde::{Deserialize, Serialize};
 use super::*;
@@ -66,6 +67,7 @@ impl Scene {
       8.,
       if num_cpus::get() > 2 { 50. } else { 20. },
       if num_cpus::get() > 2 { 100 } else { 5 },
+      Some(42),
     )
   }
 
@@ -75,14 +77,18 @@ impl Scene {
     max_radius: f32,
     placement_radius: f32,
     sphere_count: u32,
+    seed: Option<u64>,
   ) -> Scene {
+    let seed = seed.unwrap_or(rand::random::<u64>());
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
     let mut objects: Vec<Object> = vec![];
 
     for i in 0u32..sphere_count {
       // if it failed 100 times, then there's probably no space left
       for _ in 0..100 {
-        let radius: f32 = rand::random::<f32>() * (max_radius - min_radius) + min_radius;
-        let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rand::thread_rng());
+        let radius: f32 = rng.gen::<f32>() * (max_radius - min_radius) + min_radius;
+        let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rng);
         let x = x * placement_radius;
         let y = y * placement_radius;
         let position = Vec3 { x, y: radius, z: y };
@@ -102,10 +108,10 @@ impl Scene {
         objects.push(Object {
           name: i.to_string(),
           material: Material {
-            colour: (rand::random(), rand::random(), rand::random()),
+            colour: (rng.gen(), rng.gen(), rng.gen()),
             // some sort of distribution would be better here
-            specular: rand::random::<f32>() * 1000.,
-            metallic: if rand::random::<f32>() > 0.3 { rand::random() } else { 0. },
+            specular: rng.gen::<f32>() * 1000.,
+            metallic: if rng.gen::<f32>() > 0.3 { rng.gen() } else { 0. },
           },
           geometry: Geometry::Sphere {
             center: position,
