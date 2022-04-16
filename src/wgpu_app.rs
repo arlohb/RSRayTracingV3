@@ -37,7 +37,7 @@ pub struct WgpuApp {
   pub state: egui_winit::State,
   pub context: egui::Context,
   pub egui_rpass: RenderPass,
-  pub app: crate::app::App,
+  pub app: crate::ui::Ui,
   pub previous_frame_time: Option<f32>,
   pub repaint_signal: Arc<RepaintSignal>,
   pub render_texture: crate::gpu::RenderTexture,
@@ -67,7 +67,7 @@ impl WgpuApp {
 
     let render_texture = crate::gpu::RenderTexture::new();
 
-    let app = crate::App::new(scene, frame_times);
+    let app = crate::Ui::new(scene, frame_times);
 
     // We use the egui_wgpu_backend crate as the render backend.
     let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);

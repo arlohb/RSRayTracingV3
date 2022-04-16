@@ -1,5 +1,5 @@
-mod app;
-pub use app::App;
+mod ui;
+pub use ui::Ui;
 
 pub mod ray_tracer;
 pub mod movement;

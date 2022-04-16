@@ -1,14 +1,14 @@
 use std::sync::{Mutex, Arc};
 use crate::{ray_tracer::*, panels::*, Time};
 
-pub struct App {
+pub struct Ui {
   g_scene: Arc<Mutex<Scene>>,
   scene: Scene,
   last_time: f64,
   frame_times: Arc<Mutex<crate::History>>,
 }
 
-impl App {
+impl Ui {
   pub fn new(
     g_scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::History>>,
