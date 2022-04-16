@@ -13,6 +13,7 @@ use winit::{
 };
 
 use crate::ray_tracer::Scene;
+use crate::gpu::SharedGpu;
 
 /// A custom event type for the winit app.
 enum Event {
@@ -30,46 +31,28 @@ impl epi::backend::RepaintSignal for RepaintSignal {
 }
 
 pub struct WgpuApp {
-  pub device: wgpu::Device,
-  pub queue: wgpu::Queue,
-  pub surface: wgpu::Surface,
+  pub shared_gpu: Arc<SharedGpu>,
   pub surface_config: wgpu::SurfaceConfiguration,
   pub surface_format: wgpu::TextureFormat,
   pub state: egui_winit::State,
   pub context: egui::Context,
   pub egui_rpass: RenderPass,
-  pub app: Box<dyn epi::App>,
+  pub app: crate::app::App,
   pub previous_frame_time: Option<f32>,
   pub repaint_signal: Arc<RepaintSignal>,
+  pub render_texture: crate::gpu::RenderTexture,
 }
 
 impl WgpuApp {
   pub async fn new(
+    shared_gpu: Arc<SharedGpu>,
     window: &winit::window::Window,
-    app: Box<dyn epi::App>,
     repaint_signal: Arc<RepaintSignal>,
+    scene: Arc<Mutex<Scene>>,
+    frame_times: Arc<Mutex<crate::History>>,
   ) -> WgpuApp {
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-    let surface = unsafe { instance.create_surface(&window) };
-
-    // WGPU 0.11+ support force fallback (if HW implementation not supported), set it to true or false (optional).
-    let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-      power_preference: wgpu::PowerPreference::HighPerformance,
-      compatible_surface: Some(&surface),
-      force_fallback_adapter: false,
-    }).await.expect("Failed to get video adapter");
-
-    let (device, queue) = adapter.request_device(
-      &wgpu::DeviceDescriptor {
-        features: wgpu::Features::default(),
-        limits: wgpu::Limits::default(),
-        label: None,
-      },
-      None,
-    ).await.expect("Failed to create device");
-
     let size = window.inner_size();
-    let surface_format = surface.get_preferred_format(&adapter).expect("Surface format not supported");
+    let surface_format = shared_gpu.surface.get_preferred_format(&shared_gpu.adapter).expect("Surface format not supported");
     let surface_config = wgpu::SurfaceConfiguration {
       usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
       format: surface_format,
@@ -77,18 +60,20 @@ impl WgpuApp {
       height: size.height as u32,
       present_mode: wgpu::PresentMode::Mailbox,
     };
-    surface.configure(&device, &surface_config);
+    shared_gpu.surface.configure(&shared_gpu.device, &surface_config);
 
     let state = egui_winit::State::new(4096, window);
     let context = egui::Context::default();
 
+    let render_texture = crate::gpu::RenderTexture::new();
+
+    let app = crate::App::new(scene, frame_times);
+
     // We use the egui_wgpu_backend crate as the render backend.
-    let egui_rpass = RenderPass::new(&device, surface_format, 1);
+    let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);
 
     WgpuApp {
-      device,
-      queue,
-      surface,
+      shared_gpu,
       surface_config,
       surface_format,
       state,
@@ -97,11 +82,16 @@ impl WgpuApp {
       app,
       previous_frame_time: None,
       repaint_signal,
+      render_texture,
     }
   }
 
-  pub fn render(&mut self, window: &winit::window::Window) {
-    let output_frame = match self.surface.get_current_texture() {
+  pub fn render(
+    &mut self,
+    window: &winit::window::Window,
+    render_texture: crate::gpu::RenderTexture,
+  ) {
+    let output_frame = match self.shared_gpu.surface.get_current_texture() {
       Ok(frame) => frame,
       Err(e) => {
         eprintln!("Dropped frame with error: {}", e);
@@ -131,7 +121,7 @@ impl WgpuApp {
     });
 
     // Draw the demo application.
-    self.app.update(&self.context, &frame);
+    self.app.update(&self.context, &frame, render_texture);
 
     // End the UI frame. We could now handle the output and draw the UI with the backend.
     let output = self.context.end_frame();
@@ -140,7 +130,7 @@ impl WgpuApp {
     let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
     self.previous_frame_time = Some(frame_time);
 
-    let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+    let mut encoder = self.shared_gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
       label: Some("encoder"),
     });
 
@@ -151,9 +141,9 @@ impl WgpuApp {
       scale_factor: window.scale_factor() as f32,
     };
 
-    self.egui_rpass.add_textures(&self.device, &self.queue, &output.textures_delta).expect("Failed to add egui textures");
+    self.egui_rpass.add_textures(&self.shared_gpu.device, &self.shared_gpu.queue, &output.textures_delta).expect("Failed to add egui textures");
     self.egui_rpass.remove_textures(output.textures_delta).expect("Failed to remove egui textures");
-    self.egui_rpass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
+    self.egui_rpass.update_buffers(&self.shared_gpu.device, &self.shared_gpu.queue, &paint_jobs, &screen_descriptor);
 
     // Record all render passes.
     self.egui_rpass
@@ -166,7 +156,7 @@ impl WgpuApp {
       )
       .expect("Failed to execute render pass");
     // Submit the commands.
-    self.queue.submit(iter::once(encoder.finish()));
+    self.shared_gpu.queue.submit(iter::once(encoder.finish()));
 
     // Redraw egui
     output_frame.present();
@@ -174,7 +164,6 @@ impl WgpuApp {
 }
 
 pub async fn run(
-  app: Box<dyn epi::App>,
   scene: Arc<Mutex<Scene>>,
   frame_times: Arc<Mutex<crate::History>>,
   fps_limit: f64,
@@ -183,37 +172,37 @@ pub async fn run(
 
   let mut last_time = crate::Time::now_millis();
 
-  let window: winit::window::Window = winit::window::Window::new(&event_loop).unwrap();
-  let egui_window = winit::window::WindowBuilder::new()
+  let window = winit::window::WindowBuilder::new()
     .with_decorations(true)
     .with_resizable(true)
     .with_transparent(false)
     .with_title("egui-wgpu_winit example")
     .with_inner_size(winit::dpi::PhysicalSize {
-      width: 800u32,
-      height: 700u32,
+      width: 1200u32,
+      height: 800u32,
     })
     .build(&event_loop)
     .expect("Failed to create window");
 
-  let mut gpu = crate::gpu::Gpu::new(
-    &window,
-    scene,
-  ).await;
+  let shared_gpu = Arc::new(SharedGpu::new(&window).await);
+
+  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene.clone()).await;
 
   let mut wgpu_app = crate::wgpu_app::WgpuApp::new(
-    &egui_window,
-    app,
+    shared_gpu.clone(),
+    &window,
     Arc::new(RepaintSignal(std::sync::Mutex::new(
       event_loop.create_proxy(),
     ))),
+    scene.clone(),
+    frame_times.clone(),
   ).await;
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Poll;
     match event {
       RedrawRequested(window_id) => {
-        if window_id == egui_window.id() {
+        if window_id == window.id() {
           let now = crate::Time::now_millis();
           let elapsed = now - last_time;
           if elapsed > 1000. / fps_limit {
@@ -222,20 +211,20 @@ pub async fn run(
               frame_times.add(elapsed);
             }
 
-            wgpu_app.render(&egui_window);
-            gpu.render(&window);
+            gpu.render(&mut wgpu_app.egui_rpass, &mut wgpu_app.render_texture);
+            wgpu_app.render(&window, wgpu_app.render_texture);
           }
         }
       }
       MainEventsCleared | UserEvent(Event::RequestRedraw) => {
-        egui_window.request_redraw();
+        window.request_redraw();
       }
       WindowEvent { window_id, event, .. } => match event {
         winit::event::WindowEvent::Resized(size) => {
-          if window_id == egui_window.id() {
+          if window_id == window.id() {
             wgpu_app.surface_config.width = size.width;
             wgpu_app.surface_config.height = size.height;
-            wgpu_app.surface.configure(&wgpu_app.device, &wgpu_app.surface_config);
+            shared_gpu.surface.configure(&shared_gpu.device, &wgpu_app.surface_config);
           } else {
             gpu.resize(size);
           }
@@ -244,7 +233,7 @@ pub async fn run(
           *control_flow = ControlFlow::Exit;
         }
         event => {
-          if window_id == egui_window.id() {
+          if window_id == window.id() {
             // Pass the winit events to the platform integration.
             wgpu_app.state.on_event(&wgpu_app.context, &event);
           }

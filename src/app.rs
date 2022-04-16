@@ -20,30 +20,13 @@ impl App {
       frame_times,
     }
   }
-}
 
-impl epi::App for App {
-  fn name(&self) -> &str {
-    "RSRayTracingV2"
-  }
-
-  /// Called once before the first frame.
-  fn setup(
+  pub fn update(
     &mut self,
     ctx: &egui::Context,
-    _frame: &epi::Frame,
-    _storage: Option<&dyn epi::Storage>,
+    _: &epi::Frame,
+    render_texture: crate::gpu::RenderTexture,
   ) {
-    ctx.set_style({
-      let mut style: egui::Style = (*ctx.style()).clone();
-      style.visuals = egui::Visuals::dark();
-      style
-    });
-  }
-
-  /// Called each time the UI needs repainting, which may be many times per second.
-  /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-  fn update(&mut self, ctx: &egui::Context, _: &epi::Frame) {
     let now = Time::now_millis();
     // delta_time is in seconds
     let delta_time = (now - self.last_time) as f32 / 1000.;
@@ -77,6 +60,12 @@ impl epi::App for App {
     }
 
     egui::CentralPanel::default().show(ctx, |ui| {
+      if let Some(id) = render_texture.id {
+        ui.image(id, [render_texture.width as f32, render_texture.height as f32]);
+      }
+    });
+
+    egui::SidePanel::right("panel").show(ctx, |ui| {
       ui.columns(2, |cols| {
         object_panel(&mut cols[0], &mut self.scene);
         settings_panel(&mut cols[1], self.frame_times.clone(), &mut self.scene);

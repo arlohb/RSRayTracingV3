@@ -21,9 +21,5 @@ fn main() {
   let frame_times = Arc::new(Mutex::new(History::new(5_000.)));
   let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
 
-  let app = Box::new(
-    crate::App::new(scene.clone(), frame_times.clone()),
-  );
-
-  pollster::block_on(crate::wgpu_app::run(app, scene, frame_times, 240.));
+  pollster::block_on(crate::wgpu_app::run(scene, frame_times, 240.));
 }

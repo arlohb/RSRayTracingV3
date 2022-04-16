@@ -2,74 +2,71 @@ mod connection;
 pub use connection::Connection;
 mod shaders;
 pub use shaders::*;
+pub mod shared_gpu;
+pub use shared_gpu::SharedGpu;
+pub mod render_texture;
+pub use render_texture::RenderTexture;
 
 use std::sync::{Arc, Mutex};
-use winit::window::Window;
 use crate::ray_tracer::Scene;
 
 pub struct Gpu {
-  device: wgpu::Device,
-  queue: wgpu::Queue,
-  surface: wgpu::Surface,
-  config: wgpu::SurfaceConfiguration,
+  shared_gpu: Arc<SharedGpu>,
   render_pipeline: wgpu::RenderPipeline,
+  output_view: wgpu::TextureView,
   connection: Connection,
 }
 
 impl Gpu {
   pub async fn new(
-    window: &Window,
+    shared_gpu: Arc<SharedGpu>,
     scene: Arc<Mutex<Scene>>,
   ) -> Gpu {
-    let size = window.inner_size();
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
-    let surface = unsafe { instance.create_surface(&window) };
-    let adapter = instance
-      .request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::default(),
-        force_fallback_adapter: false,
-        // Request an adapter which can render to our surface
-        compatible_surface: Some(&surface),
-      })
-      .await
-      .expect("Failed to find an appropriate adapter");
+    let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue);
 
-    // Create the logical device and command queue
-    let (device, queue) = adapter
-      .request_device(
-        &wgpu::DeviceDescriptor {
-          label: None,
-          features: wgpu::Features::BUFFER_BINDING_ARRAY
-            | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY,
-          limits: wgpu::Limits::default(),
-        },
-        None,
-      )
-      .await
-      .expect("Failed to create device");
-
-    let connection = Connection::new(scene.clone(), &device, &queue);
-
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+    let pipeline_layout = shared_gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: None,
       bind_group_layouts: &[&connection.bind_group_layout],
       push_constant_ranges: &[],
     });
 
-    let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
+    let output_descriptor = wgpu::TextureDescriptor {
+      size: wgpu::Extent3d {
+        width: 500,
+        height: 500,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: wgpu::TextureDimension::D2,
+      format: wgpu::TextureFormat::Rgba8UnormSrgb,
+      usage: wgpu::TextureUsages::COPY_SRC
+        | wgpu::TextureUsages::RENDER_ATTACHMENT
+        | wgpu::TextureUsages::TEXTURE_BINDING,
+      label: None,
+    };
 
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let output = shared_gpu.device.create_texture(&output_descriptor);
+    let output_view = output.create_view(&Default::default());
+
+    let render_pipeline = shared_gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
       label: None,
       layout: Some(&pipeline_layout),
       vertex: wgpu::VertexState {
-        module: &crate::gpu::vert_shader(&device),
+        module: &crate::gpu::vert_shader(&shared_gpu.device),
         entry_point: "vs_main",
         buffers: &[],
       },
       fragment: Some(wgpu::FragmentState {
-        module: &crate::gpu::frag_shader(&device, scene.lock().unwrap().reflection_limit),
+        module: &crate::gpu::frag_shader(&shared_gpu.device, scene.lock().unwrap().reflection_limit),
         entry_point: "fs_main",
-        targets: &[swapchain_format.into()],
+        targets: &[
+          wgpu::ColorTargetState {
+            format: output_descriptor.format,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+          }
+        ],
       }),
       primitive: wgpu::PrimitiveState::default(),
       depth_stencil: None,
@@ -77,73 +74,68 @@ impl Gpu {
       multiview: None,
     });
 
-    let config = wgpu::SurfaceConfiguration {
-      usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-      format: swapchain_format,
-      width: size.width,
-      height: size.height,
-      present_mode: wgpu::PresentMode::Mailbox,
-    };
-
-    surface.configure(&device, &config);
-
     Gpu {
-      device,
-      queue,
-      surface,
+      shared_gpu,
       render_pipeline,
+      output_view,
       connection,
-      config,
     }
   }
 
-  pub fn render(&mut self, window: &winit::window::Window) {
-    self.connection.update_buffer(&self.queue, window.inner_size());
+  pub fn render(
+    &mut self,
+    egui_rpass: &mut egui_wgpu_backend::RenderPass,
+    render_texture: &mut crate::gpu::RenderTexture,
+  ) {
+    self.connection.update_buffer(&self.shared_gpu.queue, winit::dpi::PhysicalSize::new(500, 500));
 
-    let frame = self.surface
-      .get_current_texture()
-      .expect("Failed to acquire next swap chain texture");
-    let view = frame
-      .texture
-      .create_view(&wgpu::TextureViewDescriptor::default());
     let mut encoder =
-      self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+      self.shared_gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
     {
       let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: None,
         color_attachments: &[wgpu::RenderPassColorAttachment {
-          view: &view,
+          view: &self.output_view,
           resolve_target: None,
           ops: wgpu::Operations {
-            // load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-            load: wgpu::LoadOp::Load,
+            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
             store: true,
           },
         }],
         depth_stencil_attachment: None,
       });
-      // rpass.set_viewport(
-      //   0.,
-      //   0.,
-      //   500.,
-      //   500.,
-      //   0.,
-      //   1.,
-      // );
       rpass.set_pipeline(&self.render_pipeline);
       rpass.set_bind_group(0, &self.connection.bind_group, &[]);
       rpass.draw(0..6, 0..1);
     }
 
-    self.queue.submit(Some(encoder.finish()));
-    frame.present();
+    self.shared_gpu.queue.submit(Some(encoder.finish()));
+
+    render_texture.update(
+      &self.shared_gpu.device,
+      egui_rpass,
+      &self.output_view,
+    );
   }
 
   pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
-    // Reconfigure the surface with the new size
-    self.config.width = size.width;
-    self.config.height = size.height;
-    self.surface.configure(&self.device, &self.config);
+    let output_descriptor = wgpu::TextureDescriptor {
+      size: wgpu::Extent3d {
+        width: size.width,
+        height: size.height,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: wgpu::TextureDimension::D2,
+      format: wgpu::TextureFormat::Rgba8UnormSrgb,
+      usage: wgpu::TextureUsages::COPY_SRC
+        | wgpu::TextureUsages::RENDER_ATTACHMENT,
+      label: None,
+    };
+
+    let output = self.shared_gpu.device.create_texture(&output_descriptor);
+    self.output_view = output.create_view(&Default::default());
   }
 }
