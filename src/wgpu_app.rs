@@ -194,7 +194,7 @@ pub fn run(
     Arc::new(RepaintSignal(std::sync::Mutex::new(
       event_loop.create_proxy(),
     ))),
-    scene.clone(),
+    scene,
     frame_times.clone(),
   );
 
