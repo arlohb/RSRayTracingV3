@@ -47,19 +47,20 @@ impl Ui {
     );
 
     if self.scene.do_objects_spin {
+      let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;
+      let rotation = Mat44::create_rotation(Axis::Y, theta);
+
       self.scene.objects.iter_mut().for_each(|object| {
-        if !matches!(object.geometry, Geometry::Sphere { .. }) {
+        if let Geometry::Sphere{ .. } = object.geometry {} else {
           return;
         }
 
         let position = object.geometry.position_as_mut();
         let length = position.length();
 
-        let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;
+        *position = position.transform_point(rotation);
 
-        *position = position.transform_point(Mat44::create_rotation(Axis::Y, theta));
-
-        // fix rounding errors?
+        // correct for rounding errors
         *position *= length / position.length();
       });
     }

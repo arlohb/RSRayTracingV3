@@ -10,6 +10,7 @@ pub enum Axis {
 /// A 4x4 matrix.
 /// 
 /// Right now this is only used to rotate points around an axis.
+#[derive(Clone, Copy)]
 pub struct Mat44 {
   data: [[f32; 4]; 4],
 }
