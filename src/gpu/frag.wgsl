@@ -50,6 +50,14 @@ struct Config {
 struct Ray {
   origin: vec3<f32>;
   direction: vec3<f32>;
+  energy: vec3<f32>;
+};
+
+struct Hit {
+  point: vec3<f32>;
+  distance: f32;
+  normal: vec3<f32>;
+  object_index: i32;
 };
 
 struct FrameData {
@@ -92,28 +100,52 @@ fn random() -> f32 {
   return result;
 }
 
-fn get_tangent_space(normal: vec3<f32>) -> mat3x3<f32> {
-  var helper = vec3<f32>(1., 0., 0.);
+// fn get_tangent_space(normal: vec3<f32>) -> mat3x3<f32> {
+//   var helper = normalize(vec3<f32>(0., 1., 0.));
+//   // if (abs(normal.x) > 0.99999) {
+//   //   helper = vec3<f32>(0., 0., 1.);
+//   // }
+
+//   var tangent = normalize(cross(normal, helper));
+
+//   if (!any(tangent != vec3<f32>(0., 0., 0.))) {
+//     helper = vec3<f32>(0., 0., 1.);
+//     tangent = normalize(cross(normal, helper));
+//   }
+
+//   let binormal = normalize(cross(normal, tangent));
+//   return mat3x3<f32>(tangent, binormal, normal);
+// }
+
+fn random_in_hemisphere(normal: vec3<f32>, smoothness: f32) -> vec3<f32> {
+  // let alpha = pow(1000., smoothness * smoothness);
+  let alpha = 0.;
+  let cos_theta = pow(random(), 1. / (alpha + 1.));
+  let sin_theta = sqrt(1. - (cos_theta * cos_theta));
+  let phi = 2. * PI * random();
+  // return vec3<f32>(1., 1., 1.) * sin_theta;
+  let tangent_space_dir = vec3<f32>(
+    cos(phi) * sin_theta,
+    cos_theta,
+    sin(phi) * sin_theta,
+  );
+
+  var helper = normalize(vec3<f32>(1., 0., 0.));
   if (abs(normal.x) > 0.99) {
     helper = vec3<f32>(0., 0., 1.);
   }
 
   let tangent = normalize(cross(normal, helper));
-  let bitangent = normalize(cross(normal, tangent));
-  return mat3x3<f32>(tangent, bitangent, normal);
-}
 
-fn random_in_hemisphere(normal: vec3<f32>) -> vec3<f32> {
-  let cos_theta = random();
-  let sin_theta = sqrt(max(0., 1. - cos_theta * cos_theta));
-  let phi = 2. * PI * random();
-  let tangent_space_dir = vec3<f32>(
-    cos(phi) * sin_theta,
-    sin(phi) * sin_theta,
-    cos_theta
-  );
+  // if (!any(tangent != vec3<f32>(0., 0., 0.))) {
+  //   helper = vec3<f32>(0., 0., 1.);
+  //   tangent = normalize(cross(normal, helper));
+  // }
 
-  return tangent_space_dir * get_tangent_space(normal);
+  let binormal = normalize(cross(normal, tangent));
+  let tangent_space_mat = mat3x3<f32>(tangent, binormal, normal);
+
+  return tangent_space_mat * tangent_space_dir;
 }
 
 // only returns the smallest value
@@ -140,7 +172,7 @@ fn object_normal(object: Object, point: vec3<f32>) -> vec3<f32> {
   return vec3<f32>(0., 1., 0.);
 }
 
-fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
+fn ray_intersect(ray: Ray) -> Hit {
   var closest_dst = 1000000.;
   var closest_point = vec3<f32>(0., 0., 0.);
   var closest_object_index = -1;
@@ -192,8 +224,9 @@ fn ray_intersect(ray: Ray, point: ptr<function, vec3<f32> >) -> i32 {
     }
   }
 
-  *point = closest_point;
-  return closest_object_index;
+  let normal = object_normal(objects.objects[closest_object_index], closest_point);
+
+  return Hit(closest_point, closest_dst, normal, closest_object_index);
 }
 
 fn get_point_to_light(light: Light, point: vec3<f32>) -> vec3<f32> {
@@ -204,112 +237,98 @@ fn get_point_to_light(light: Light, point: vec3<f32>) -> vec3<f32> {
   }
 }
 
-fn calculate_local_colour(point: vec3<f32>, object: Object) -> vec3<f32> {
-  let normal = object_normal(object, point);
+// fn calculate_local_colour(point: vec3<f32>, object: Object) -> vec3<f32> {
+//   let normal = object_normal(object, point);
 
-  // the brightness starts at the ambient light level
-  var brightness = config.ambient_light;
+//   // the brightness starts at the ambient light level
+//   var brightness = config.ambient_light;
 
-  for (var i = 0u; i < arrayLength(&lights.lights); i = i + 1u) {
-    let light = lights.lights[i];
+//   for (var i = 0u; i < arrayLength(&lights.lights); i = i + 1u) {
+//     let light = lights.lights[i];
 
-    let point_to_light = get_point_to_light(light, point);
+//     let point_to_light = get_point_to_light(light, point);
 
-    let shadow_ray = Ray(point, normalize(point_to_light));
+//     let shadow_ray = Ray(point, normalize(point_to_light), vec3<f32>(1., 1., 1.));
 
-    // ignore this light if object is in shadow
-    var temp = vec3<f32>(0., 0., 0.);
-    if (ray_intersect(shadow_ray, &temp) != -1) {
-      continue;
-    }
+//     // ignore this light if object is in shadow
+//     var temp = vec3<f32>(0., 0., 0.);
+//     if (ray_intersect(shadow_ray, &temp) != -1) {
+//       continue;
+//     }
 
-    // calculate the intensity of the light depending on the angle
-    let angle_intensity = clamp(dot(normal, point_to_light) / (length(normal) * length(point_to_light)), 0., 1.);
+//     // calculate the intensity of the light depending on the angle
+//     let angle_intensity = clamp(dot(normal, point_to_light) / (length(normal) * length(point_to_light)), 0., 1.);
 
-    // calculate the specular intensity
-    let reflection_vector = reflect(shadow_ray.direction, normal);
-    let camera_vector = config.position - point;
-    let specular = pow(
-      clamp(
-        dot(reflection_vector, camera_vector) / (length(reflection_vector) * length(camera_vector)), 0., 1.,
-      ),
-      object.material.specular,
-    );
+//     // calculate the specular intensity
+//     let reflection_vector = reflect(shadow_ray.direction, normal);
+//     let camera_vector = config.position - point;
+//     let specular = pow(
+//       clamp(
+//         dot(reflection_vector, camera_vector) / (length(reflection_vector) * length(camera_vector)), 0., 1.,
+//       ),
+//       object.material.specular,
+//     );
 
-    brightness = brightness + (light.colour * (angle_intensity + specular));
-  }
+//     brightness = brightness + (light.colour * (angle_intensity + specular));
+//   }
 
-  return brightness * object.material.colour;
-}
+//   return brightness * object.material.colour;
+// }
 
-fn trace_ray(ray: ptr<function, Ray>, metallic_stack: ptr<function, array<f32, BOUNCE_LIMIT> >, index: u32) -> vec3<f32> {
-  var point = vec3<f32>(0., 0., 0.);
-  let object_index = ray_intersect(*ray, &point);
+fn shade(ray: ptr<function, Ray>, hit: Hit) -> vec3<f32> {
+  let hit = ray_intersect(*ray);
 
   let u = 0.5 + (atan2((*ray).direction.x, (*ray).direction.z) / (2. * PI));
   let v = 0.5 + (asin(-(*ray).direction.y) / PI);
 
-  let hdri = textureSample(t_hdri, s_tex, vec2<f32>(u, v)).xyz;
+  let hdri = textureSample(t_hdri, s_tex, vec2<f32>(u, v)).xyz * 5.;
 
-  if (object_index == -1) {
-    (*metallic_stack)[index] = 0.;
-    // return config.background_colour;
-
+  if (hit.object_index == -1) {
+    (*ray).energy =vec3<f32>(0., 0., 0.);
     return hdri;
   }
 
-  let object = objects.objects[object_index];
+  let specular = vec3<f32>(0.6, 0.6, 0.6);
+  let material = objects.objects[hit.object_index].material;
 
-  (*metallic_stack)[index] = object.material.metallic;
+  (*ray).origin = hit.point + hit.normal * 0.001;
+  // (*ray).direction = reflect((*ray).direction, hit.normal);
 
-  if (object.material.metallic != 0.) {
-    *ray = Ray(point, reflect((*ray).direction, object_normal(object, point)));
-  }
+  let roughness = material.metallic;
 
-  return calculate_local_colour(point, object);
+  (*ray).direction = normalize((1. - roughness) * reflect((*ray).direction, hit.normal) + roughness * random_in_hemisphere(hit.normal, 1.));
+  // (*ray).direction = random_in_hemisphere(hit.normal, 1. - roughness);
+
+  (*ray).energy = (*ray).energy * (material.colour * clamp(dot(hit.normal, (*ray).direction), 0., 1.));
+
+  (*ray).energy = vec3<f32>(0., 0., 0.);
+  return random_in_hemisphere(hit.normal, 1.);
+
+  // return vec3<f32>(0., 0., 0.);
+  // return clamp(dot(hit.normal, lights.lights[0].vec_data) * -1., 0., 1.) * (1. - material.metallic) * material.colour;
+
+  // let object = objects.objects[hit.object_index];
+
+  // if (object.material.metallic != 0.) {
+  //   *ray = Ray(hit.point, reflect((*ray).direction, hit.normal), vec3<f32>(1., 1., 1.));
+  // }
+
+  // return calculate_local_colour(point, object);
 }
 
-fn colour_lerp(local: vec3<f32>, reflection: vec3<f32>, metallic: f32) -> vec3<f32> {
-  return local * (1. - metallic) + reflection * metallic;
-}
-
-fn stack_collapse(
-  metallic_stack: ptr<function, array<f32, BOUNCE_LIMIT> >,
-  reflection_colour_stack: ptr<function, array<vec3<f32>, BOUNCE_LIMIT> >,
-  i_collapsed: u32,
-) -> vec3<f32> {
-  for (var i = i32(i_collapsed) - 1; i >= 0; i = i - 1) {
-    (*reflection_colour_stack)[i] = colour_lerp(
-      (*reflection_colour_stack)[i],
-      (*reflection_colour_stack)[i + 1],
-      (*metallic_stack)[i],
-    );
-  }
-
-  return (*reflection_colour_stack)[0];
-}
-
-fn trace_ray_with_reflections(ray: Ray) -> vec3<f32> {
-  var metallic_stack = array<f32, BOUNCE_LIMIT>(// metallic_stack_values //);
-  0.); ////
-  var reflection_colour_stack = array<vec3<f32>, BOUNCE_LIMIT>(// reflection_colour_stack_values //);
-  vec3<f32>(0., 0., 0.)); ////
-
-  var reflection_ray = ray;
+fn trace_ray_with_reflections(ray: ptr<function, Ray>) -> vec3<f32> {
+  var result = vec3<f32>(0., 0., 0.);
 
   for (var i = 0u; i < BOUNCE_LIMIT; i = i + 1u) {
-    reflection_colour_stack[i] = trace_ray(&reflection_ray, &metallic_stack, i);
+    let hit = ray_intersect(*ray);
+    result = result + (*ray).energy * shade(ray, hit);
 
-    if (i != BOUNCE_LIMIT - 1u && metallic_stack[i] == 0.) {
-      if (i == 0u) {
-        return reflection_colour_stack[i];
-      } else {
-        return stack_collapse(&metallic_stack, &reflection_colour_stack, i);
-      }
+    if (length((*ray).energy) < EPSILON) {
+      break;
     }
   }
 
-  return stack_collapse(&metallic_stack, &reflection_colour_stack, BOUNCE_LIMIT - 1u);
+  return result;
 }
 
 fn create_ray(coord: vec2<f32>) -> Ray {
@@ -335,7 +354,7 @@ fn create_ray(coord: vec2<f32>) -> Ray {
 
   let pixel_world_space = top_left + x_offset + y_offset;
 
-  return Ray(config.position, normalize(pixel_world_space - config.position));
+  return Ray(config.position, normalize(pixel_world_space - config.position), vec3<f32>(1., 1., 1.));
 }
 
 [[stage(fragment)]]
@@ -347,9 +366,9 @@ fn fs_main([[builtin(position)]] coord_in: vec4<f32>) -> [[location(0)]] vec4<f3
 
   let coord = vec2<f32>(x / f32(config.width), y / f32(config.height));
 
-  let ray = create_ray(coord);
+  var ray = create_ray(coord);
 
-  let pixel = trace_ray_with_reflections(ray);
+  let pixel = trace_ray_with_reflections(&ray);
 
   let previous = textureSample(t_render, s_tex, vec2<f32>(coord.x, coord.y)).xyz;
 

@@ -156,7 +156,7 @@ impl Scene {
       ],
       background_colour: (0.5, 0.8, 1.),
       ambient_light: (0.2, 0.2, 0.2),
-      reflection_limit: 4,
+      reflection_limit: 8,
       do_objects_spin: false,
     }
   }
