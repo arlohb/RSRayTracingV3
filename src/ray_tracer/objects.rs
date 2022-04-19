@@ -6,30 +6,33 @@ use crate::utils::bytes::*;
 /// These parameters influence how light interacts with the object.
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct Material {
-  /// The albedo colour of the object.
-  ///
-  /// In the order red, green, blue.
-  /// 
-  /// In the range 0..1.
+  /// The albedo colour.
+  /// RGB from 0..1.
   pub colour: (f32, f32, f32),
-  /// The specularity of the object.
-  /// 
-  /// Values that work are from about 1..1000,
-  /// with 1000 being a very shiny object.
-  pub specular: f32,
+  /// The emissive colour.
+  /// RGB from 0..1.
+  pub emission: (f32, f32, f32),
+  /// The emission strength.
+  pub emission_strength: f32,
   /// How much of the object's colour is a reflection of the environment.
   /// 
   /// In the range 0..1.
   pub metallic: f32,
+  /// How rough the reflection is
+  pub roughness: f32,
 }
 
 impl Material {
+  pub const BUFFER_SIZE: usize = 48;
+
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 20] {
+  pub fn as_bytes(&self) -> [u8; Material::BUFFER_SIZE] {
     bytes_concat_n(&[
-      &tuple_bytes::<12>(self.colour),
-      &self.specular.to_le_bytes(),
+      &tuple_bytes::<16>(self.colour),
+      &tuple_bytes::<12>(self.emission),
+      &self.emission_strength.to_le_bytes(),
       &self.metallic.to_le_bytes(),
+      &self.roughness.to_le_bytes(),
     ])
   }
 }
@@ -62,8 +65,10 @@ pub enum Geometry {
 }
 
 impl Geometry {
+  pub const BUFFER_SIZE: usize = 64;
+
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 56] {
+  pub fn as_bytes(&self) -> [u8; Geometry::BUFFER_SIZE] {
     match self {
       Geometry::Sphere { center, radius } => bytes_concat_n(&[
         &0u32.to_le_bytes(),
@@ -113,13 +118,13 @@ pub struct Object {
 }
 
 impl Object {
+  pub const BUFFER_SIZE: usize = Material::BUFFER_SIZE + Geometry::BUFFER_SIZE;
+
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 96] {
+  pub fn as_bytes(&self) -> [u8; Object::BUFFER_SIZE] {
     bytes_concat_n(&[
       &self.material.as_bytes(),
-      &[0u8; 12],
       &self.geometry.as_bytes(),
-      &[0u8; 8],
     ])
   }
 }
@@ -136,8 +141,10 @@ pub enum Light {
 }
 
 impl Light {
+  pub const BUFFER_SIZE: usize = 48;
+
   /// Get the byte representation of the object.
-  pub fn as_bytes(&self) -> [u8; 48] {
+  pub fn as_bytes(&self) -> [u8; Light::BUFFER_SIZE] {
     match self {
       Light::Direction { intensity, direction } => bytes_concat_n(&[
         &0u32.to_le_bytes(),

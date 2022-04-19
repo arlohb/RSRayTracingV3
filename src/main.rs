@@ -21,7 +21,7 @@ fn main() {
   crate::app::run(
     scene,
     frame_times,
-    60.,
+    5000.,
     (1920, 1080),
     (1000, 900),
   );

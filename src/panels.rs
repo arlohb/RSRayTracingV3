@@ -2,10 +2,8 @@ use egui;
 use std::sync::{Arc, Mutex};
 use crate::ray_tracer::*;
 
-fn vec3_widget(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, vec3: &mut Vec3) {
+fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
   ui.horizontal(|ui| {
-    ui.label(label);
-
     ui.add(egui::DragValue::new(&mut vec3.x)
       .fixed_decimals(1)
       .speed(0.1));
@@ -18,6 +16,19 @@ fn vec3_widget(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, vec3: &mut
   });
 }
 
+fn colour_widget(ui: &mut egui::Ui, input: &mut (f32, f32, f32)) {
+  let mut colour = [input.0 as f32, input.1 as f32, input.2 as f32];
+  ui.color_edit_button_rgb(&mut colour);
+  *input = (colour[0] as f32, colour[1] as f32, colour[2] as f32);
+}
+
+fn data_row(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, widget: impl FnOnce(&mut egui::Ui)) {
+  ui.columns(2, |ui| {
+    ui[0].label(label);
+    widget(&mut ui[1]);
+  });
+}
+
 pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   ui.horizontal(|ui| {
     if ui.add(egui::Button::new("➕ sphere")).clicked() {
@@ -25,8 +36,10 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
         name: String::from("sphere"),
         material: Material {
           colour: (1., 0., 0.),
-          specular: 500.,
+          emission: (0., 0., 0.),
+          emission_strength: 0.,
           metallic: 0.5,
+          roughness: 0.5,
         },
         geometry: Geometry::Sphere {
           center: Vec3 { x: 0., y: 0., z: 0., },
@@ -39,8 +52,10 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
         name: String::from("plane"),
         material: Material {
           colour: (1., 0., 0.),
-          specular: 500.,
+          emission: (0., 0., 0.),
+          emission_strength: 0.,
           metallic: 0.5,
+          roughness: 0.5,
         },
         geometry: Geometry::Plane {
           center: Vec3 { x: 0., y: 0., z: 0., },
@@ -80,37 +95,28 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
         continue;
       }
 
-      vec3_widget(ui, "pos", scene.objects[index].geometry.position_as_mut());
-      
       let object = &mut scene.objects[index];
+
+      data_row(ui, "position", |ui| {
+        vec3_widget(ui, object.geometry.position_as_mut());
+      });
 
       match &mut object.geometry {
         Geometry::Sphere { center: _, radius } => {
-          ui.horizontal(|ui| {
-            ui.label("radius");
+          data_row(ui, "radius", |ui| {
             ui.add(egui::DragValue::new(radius)
               .fixed_decimals(1)
               .speed(0.1));
           });
         },
         Geometry::Plane { center: _, normal, size } => {
-          ui.horizontal(|ui| {
-            ui.label("normal");
-            ui.add(egui::DragValue::new(&mut normal.x)
-              .fixed_decimals(1)
-              .speed(0.1));
-            ui.add(egui::DragValue::new(&mut normal.y)
-              .fixed_decimals(1)
-              .speed(0.1));
-            ui.add(egui::DragValue::new(&mut normal.z)
-              .fixed_decimals(1)
-              .speed(0.1));
+          data_row(ui, "normal", |ui| {
+            vec3_widget(ui, normal);
             
             *normal = normal.normalize();
           });
 
-          ui.horizontal(|ui| {
-            ui.label("size");
+          data_row(ui, "size", |ui| {
             ui.add(egui::DragValue::new(size)
               .fixed_decimals(1)
               .speed(0.1));
@@ -118,26 +124,26 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
         }
       }
 
-      ui.horizontal(|ui| {
-        ui.label("col");
-
-        let mut colour = [object.material.colour.0 as f32, object.material.colour.1 as f32, object.material.colour.2 as f32];
-
-        ui.color_edit_button_rgb(&mut colour);
-
-        object.material.colour = (colour[0] as f32, colour[1] as f32, colour[2] as f32);
-
-        ui.label("spec");
-        ui.add(egui::DragValue::new(&mut object.material.specular)
-          .clamp_range::<f32>(0.0..=1000.));
-        
-        ui.label("met");
+      data_row(ui, "colour", |ui| {
+        colour_widget(ui, &mut object.material.colour);
+      });
+      data_row(ui, "emission", |ui| {
+        colour_widget(ui, &mut object.material.emission);
+      });
+      data_row(ui, "strength", |ui| {
+        ui.add(egui::DragValue::new(&mut object.material.emission_strength)
+          .clamp_range::<f32>(0.0..=10.));
+      });
+      data_row(ui, "metallic", |ui| {
         ui.add(egui::DragValue::new(&mut object.material.metallic)
           .clamp_range::<f32>(0.0..=1.)
           .speed(0.1));
       });
-
-      ui.separator();
+      data_row(ui, "roughness", |ui| {
+        ui.add(egui::DragValue::new(&mut object.material.roughness)
+          .clamp_range::<f32>(0.0..=1.)
+          .speed(0.1));
+      });
     };
   });
 }
@@ -175,8 +181,12 @@ pub fn settings_panel (
 
   ui.separator();
 
-  vec3_widget(ui, "pos", &mut scene.camera.position);
-  vec3_widget(ui, "rot", &mut scene.camera.rotation);
+  data_row(ui, "position", |ui| {
+    vec3_widget(ui, &mut scene.camera.position);
+  });
+  data_row(ui, "rotation", |ui| {
+    vec3_widget(ui, &mut scene.camera.rotation);
+  });
 
   ui.separator();
 
@@ -186,14 +196,5 @@ pub fn settings_panel (
     ui.label("fov");
     ui.add(egui::DragValue::new(&mut scene.camera.fov)
       .clamp_range::<f64>(1.0..=90.));
-  });
-
-  ui.heading("Debug");
-
-  egui::ScrollArea::vertical().id_source("Debug").show(ui, |ui| {
-    let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(400, 300);
-    ui.label(crate::utils::bytes::print_bytes(&object_bytes));
-    ui.label(crate::utils::bytes::print_bytes(&light_bytes));
-    ui.label(crate::utils::bytes::print_bytes(&config_bytes));
   });
 }

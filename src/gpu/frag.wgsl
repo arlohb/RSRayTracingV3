@@ -1,7 +1,11 @@
-struct Material { // 20
+struct Material { // 48
   colour: vec3<f32>; // 12
-  specular: f32; // 4
+  // 4
+  emission: vec3<f32>; // 12
+  emission_strength: f32; // 4
   metallic: f32; // 4
+  roughness: f32; // 4
+  // 8
 };
 
 struct Geometry { // 56
@@ -13,11 +17,9 @@ struct Geometry { // 56
   data: array<u32, 2>; // 8
 };
 
-struct Object { // 96
-  material: Material; // 20
-  // 12
-  geometry: Geometry; // 56
-  // 8
+struct Object { // 112
+  material: Material; // 48
+  geometry: Geometry; // 64
 };
 
 struct Objects {
@@ -112,9 +114,13 @@ fn get_tangent_space(normal: vec3<f32>) -> mat3x3<f32> {
   return mat3x3<f32>(tangent, binormal, normal);
 }
 
-fn random_in_hemisphere(normal: vec3<f32>, smoothness: f32) -> vec3<f32> {
-  let alpha = pow(1000., smoothness * smoothness);
-  let cos_theta = pow(random(), 1. / (alpha + 1.));
+fn roughness_to_phong_alpha(roughness: f32) -> f32 {
+  let smoothness = 1. - roughness;
+  return pow(1000., smoothness * smoothness);
+}
+
+fn random_in_hemisphere(normal: vec3<f32>, phong_alpha: f32) -> vec3<f32> {
+  let cos_theta = pow(random(), 1. / (phong_alpha + 1.));
   let sin_theta = sqrt(1. - (cos_theta * cos_theta));
   let phi = 2. * PI * random();
   let tangent_space_dir = vec3<f32>(
@@ -235,13 +241,14 @@ fn shade(ray: ptr<function, Ray>, hit: Hit) -> vec3<f32> {
 
   (*ray).origin = hit.point + hit.normal * 0.001;
 
-  let roughness = material.metallic;
-
-  (*ray).direction = random_in_hemisphere(reflect((*ray).direction, hit.normal), 1. - roughness);
+  let reflection_ray = reflect((*ray).direction, hit.normal);
+  let hemisphere_sample = random_in_hemisphere(reflection_ray, roughness_to_phong_alpha(material.roughness));
+  // (*ray).direction = roughness * hemisphere_sample + (1. - roughness) * reflection_ray;
+  (*ray).direction = hemisphere_sample;
 
   (*ray).energy = (*ray).energy * (material.colour * clamp(dot(hit.normal, (*ray).direction), 0., 1.));
 
-  return vec3<f32>(0., 0., 0.);
+  return material.emission * material.emission_strength;
 }
 
 fn trace_ray_with_reflections(ray: ptr<function, Ray>) -> vec3<f32> {

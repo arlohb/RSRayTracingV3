@@ -63,6 +63,24 @@ impl Vec3 {
       z: self.x * mat[0][2] + self.y * mat[1][2] + self.z * mat[2][2],
     }
   }
+
+  /// Gets the fractional part of each component.
+  pub fn fract(&self) -> Vec3 {
+    Vec3 {
+      x: self.x.fract(),
+      y: self.y.fract(),
+      z: self.z.fract(),
+    }
+  }
+
+  /// Gets the absolute value of each component
+  pub fn abs(&self) -> Vec3 {
+    Vec3 {
+      x: self.x.abs(),
+      y: self.y.abs(),
+      z: self.z.abs(),
+    }
+  }
 }
 
 impl ops::Add for Vec3 {

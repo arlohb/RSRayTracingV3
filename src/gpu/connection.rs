@@ -10,7 +10,8 @@ pub struct FrameData {
 
 impl FrameData {
   const BUFFER_SIZE: usize = 16;
-  const JITTER_STRENGTH: f32 = 1.;
+  // const JITTER_STRENGTH: f32 = 0.75;
+  const JITTER_STRENGTH: f32 = 0.99;
 
   pub fn new(jitter: (f32, f32)) -> Self {
     Self {

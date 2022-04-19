@@ -17,9 +17,9 @@ pub struct Scene {
 }
 
 impl Scene {
-  pub const BUFFER_SIZE: (u32, u32, u32) = (
-    96 * 80, // allows for 80 objects
-    48 * 2, // allows for 2 lights
+  pub const BUFFER_SIZE: (usize, usize, usize) = (
+    Object::BUFFER_SIZE * 80,
+    Light::BUFFER_SIZE * 2,
     112,
   );
 
@@ -35,7 +35,9 @@ impl Scene {
           },
           material: Material {
             colour: (1., 0., 0.),
-            specular: 100.,
+            emission: (0., 0., 0.),
+            emission_strength: 0.,
+            roughness: 0.5,
             metallic: 1.
           },
         },
@@ -109,9 +111,18 @@ impl Scene {
           name: i.to_string(),
           material: Material {
             colour: (rng.gen(), rng.gen(), rng.gen()),
-            // some sort of distribution would be better here
-            specular: rng.gen::<f32>() * 1000.,
-            metallic: if rng.gen::<f32>() > 0.3 { rng.gen() } else { 0. },
+            emission: [
+              (1., 1., 1.),
+              (1., 0., 0.),
+              (1., 1., 0.),
+              (0., 1., 0.),
+              (0., 1., 1.),
+              (0., 0., 1.),
+              (1., 0., 1.),
+            ][rng.gen_range(0..7)],
+            emission_strength: if rng.gen::<f32>() > 0.85 { rng.gen_range(5.0..=15.) } else { 0. },
+            metallic: rng.gen(),
+            roughness: rng.gen(),
           },
           geometry: Geometry::Sphere {
             center: position,
@@ -132,8 +143,10 @@ impl Scene {
       },
       material: Material {
         colour: (0.5, 0.5, 0.5),
-        specular: 10.,
+        emission: (0., 0., 0.),
+        emission_strength: 0.,
         metallic: 0.2,
+        roughness: 0.5,
       },
     });
 
@@ -192,7 +205,6 @@ impl Scene {
         &self.reflection_limit.to_le_bytes(),
         &width.to_le_bytes(),
         &height.to_le_bytes(),
-        &[0u8; 4]
       ]),
     )
   }
