@@ -246,7 +246,7 @@ fn shade(ray: ptr<function, Ray>, hit: Hit) -> vec3<f32> {
   // (*ray).direction = roughness * hemisphere_sample + (1. - roughness) * reflection_ray;
   (*ray).direction = hemisphere_sample;
 
-  (*ray).energy = (*ray).energy * (material.colour * clamp(dot(hit.normal, (*ray).direction), 0., 1.));
+  (*ray).energy = (*ray).energy * (2. * material.colour * clamp(dot(hit.normal, (*ray).direction), 0., 1.));
 
   return material.emission * material.emission_strength;
 }
