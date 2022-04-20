@@ -16,7 +16,7 @@ use crate::ray_tracer::Scene;
 use crate::gpu::SharedGpu;
 
 /// A custom event type for the winit app.
-enum Event {
+pub enum Event {
   RequestRedraw,
 }
 
@@ -168,32 +168,19 @@ impl App {
   }
 }
 
-pub fn run(
+pub async fn run(
+  event_loop: winit::event_loop::EventLoop<Event>,
+  window: winit::window::Window,
   scene: Arc<Mutex<Scene>>,
   frame_times: Arc<Mutex<crate::utils::history::History>>,
   fps_limit: f64,
-  initial_window_size: (u32, u32),
   initial_render_size: (u32, u32),
 ) {
-  let event_loop = winit::event_loop::EventLoop::with_user_event();
-
   let mut last_time = crate::utils::time::now_millis();
 
-  let window = winit::window::WindowBuilder::new()
-    .with_decorations(true)
-    .with_resizable(true)
-    .with_transparent(false)
-    .with_title("Ray Tracer")
-    .with_inner_size(winit::dpi::PhysicalSize {
-      width: initial_window_size.0,
-      height: initial_window_size.1,
-    })
-    .build(&event_loop)
-    .expect("Failed to create window");
+  let shared_gpu = Arc::new(SharedGpu::new(&window).await);
 
-  let shared_gpu = Arc::new(SharedGpu::new(&window));
-
-  let mut app = crate::app::App::new(
+  let mut app = App::new(
     shared_gpu.clone(),
     &window,
     Arc::new(RepaintSignal(std::sync::Mutex::new(
