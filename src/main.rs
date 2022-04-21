@@ -49,6 +49,18 @@ fn main() {
   }
   #[cfg(target_arch = "wasm32")]
   {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console_log::init().expect("Failed to initialize logger");
 
+    use winit::platform::web::WindowExtWebSys;
+    web_sys.window()
+      .and_then(|win| win.document())
+      .and_then(|doc| doc.body())
+      .and_then(|body| {
+        body.append_child(&web_sys::Element::from(window.canvas()))
+          .ok()
+      })
+      .expect("Failed to append canvas to body");
+    wasm_bindgen_futures::spawn_local(run(event_loop, window));
   }
 }
