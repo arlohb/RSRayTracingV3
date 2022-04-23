@@ -23,7 +23,7 @@ impl Camera {
   /// This should be called after any manipulation of the rotation.
   pub fn clamp_rotation(&mut self) {
     // x should be clamped between -pi/2 and pi/2
-    self.rotation.x = self.rotation.x.clamp(-0.5 * std::f32::consts::PI, 0.5 * std::f32::consts::PI);
+    self.rotation.x = self.rotation.x.clamp(-0.5 * std::f32::consts::PI + 0.01, 0.5 * std::f32::consts::PI - 0.01);
 
     // y should be wrapped around to between -pi and pi
     if self.rotation.y < std::f32::consts::PI { self.rotation.y += 2. * std::f32::consts::PI; }
