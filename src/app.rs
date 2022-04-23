@@ -31,23 +31,25 @@ impl epi::backend::RepaintSignal for RepaintSignal {
 }
 
 pub struct App {
-  pub shared_gpu: Arc<SharedGpu>,
-  pub surface_config: wgpu::SurfaceConfiguration,
-  pub surface_format: wgpu::TextureFormat,
-  pub state: egui_winit::State,
-  pub context: egui::Context,
-  pub egui_rpass: RenderPass,
-  pub ui: crate::ui::Ui,
-  pub previous_frame_time: Option<f32>,
-  pub repaint_signal: Arc<RepaintSignal>,
-  pub render_target: crate::gpu::RenderTarget,
+  shared_gpu: Arc<SharedGpu>,
+  ui: crate::ui::Ui,
+  render_target: crate::gpu::RenderTarget,
+
+  surface_config: wgpu::SurfaceConfiguration,
+
+  egui_winit_state: egui_winit::State,
+  egui_context: egui::Context,
+  egui_rpass: RenderPass,
+  epi_repaint_signal: Arc<RepaintSignal>,
+
+  previous_frame_time: Option<f32>,
 }
 
 impl App {
   pub fn new(
     shared_gpu: Arc<SharedGpu>,
     window: &winit::window::Window,
-    repaint_signal: Arc<RepaintSignal>,
+    epi_repaint_signal: Arc<RepaintSignal>,
     scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::utils::history::History>>,
     initial_render_size: (u32, u32),
@@ -63,27 +65,28 @@ impl App {
     };
     shared_gpu.surface.configure(&shared_gpu.device, &surface_config);
 
-    let state = egui_winit::State::new(4096, window);
-    let context = egui::Context::default();
+    let egui_winit_state = egui_winit::State::new(4096, window);
+    let egui_context = egui::Context::default();
 
     let render_target = crate::gpu::RenderTarget::new(&shared_gpu, initial_render_size);
 
     let ui = crate::Ui::new(scene, frame_times);
 
-    // We use the egui_wgpu_backend crate as the render backend.
     let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);
 
     App {
       shared_gpu,
-      surface_config,
-      surface_format,
-      state,
-      context,
-      egui_rpass,
       ui,
-      previous_frame_time: None,
-      repaint_signal,
       render_target,
+
+      surface_config,
+
+      egui_winit_state,
+      egui_context,
+      egui_rpass,
+      epi_repaint_signal,
+
+      previous_frame_time: None,
     }
   }
 
@@ -104,8 +107,8 @@ impl App {
 
     // Begin to draw the UI frame.
     let egui_start = Instant::now();
-    let input = self.state.take_egui_input(window);
-    self.context.begin_frame(input);
+    let input = self.egui_winit_state.take_egui_input(window);
+    self.egui_context.begin_frame(input);
     let app_output = epi::backend::AppOutput::default();
 
     let frame =  epi::Frame::new(epi::backend::FrameData {
@@ -117,20 +120,20 @@ impl App {
         prefer_dark_mode: None,
       },
       output: app_output,
-      repaint_signal: self.repaint_signal.clone(),
+      repaint_signal: self.epi_repaint_signal.clone(),
     });
 
     // Draw the demo application.
     self.ui.update(
-      &self.context,
+      &self.egui_context,
       &frame,
       &mut self.render_target,
       &self.shared_gpu,
     );
 
     // End the UI frame. We could now handle the output and draw the UI with the backend.
-    let output = self.context.end_frame();
-    let paint_jobs = self.context.tessellate(output.shapes);
+    let output = self.egui_context.end_frame();
+    let paint_jobs = self.egui_context.tessellate(output.shapes);
 
     let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
     self.previous_frame_time = Some(frame_time);
@@ -223,7 +226,7 @@ pub async fn run(
         }
         event => {
           // Pass the winit events to the platform integration.
-          app.state.on_event(&app.context, &event);
+          app.egui_winit_state.on_event(&app.egui_context, &event);
         }
       },
       _ => (),
