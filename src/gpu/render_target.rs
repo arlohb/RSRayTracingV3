@@ -19,7 +19,8 @@ impl RenderTarget {
       format: wgpu::TextureFormat::Rgba8UnormSrgb,
       usage: wgpu::TextureUsages::COPY_SRC
         | wgpu::TextureUsages::RENDER_ATTACHMENT
-        | wgpu::TextureUsages::TEXTURE_BINDING,
+        | wgpu::TextureUsages::TEXTURE_BINDING
+        | wgpu::TextureUsages::COPY_DST,
       label: None,
     };
 

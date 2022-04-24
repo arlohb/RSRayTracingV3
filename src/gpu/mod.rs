@@ -18,36 +18,14 @@ pub struct Gpu {
 }
 
 impl Gpu {
-  pub fn create_render_texture(shared_gpu: &SharedGpu, size: wgpu::Extent3d) -> (wgpu::Texture, wgpu::TextureView) {
-    let render_texture = shared_gpu.device.create_texture(&wgpu::TextureDescriptor {
-      size,
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: wgpu::TextureDimension::D2,
-      format: wgpu::TextureFormat::Rgba8UnormSrgb,
-      usage: wgpu::TextureUsages::COPY_SRC
-        | wgpu::TextureUsages::RENDER_ATTACHMENT
-        | wgpu::TextureUsages::TEXTURE_BINDING
-        | wgpu::TextureUsages::COPY_DST,
-      label: None,
-    });
-    let render_view = render_texture.create_view(&Default::default());
-
-    (render_texture, render_view)
-  }
-
   pub fn new(
     shared_gpu: Arc<SharedGpu>,
     scene: Arc<Mutex<Scene>>,
     render_target: &RenderTarget,
   ) -> Gpu {
-    let (previous_render_texture, previous_render_view) = Gpu::create_render_texture(
+    let (previous_render_texture, previous_render_view) = RenderTarget::create_render_texture(
       &shared_gpu,
-      wgpu::Extent3d {
-        width: render_target.size.0,
-        height: render_target.size.1,
-        depth_or_array_layers: 1,
-      },
+      render_target.size,
     );
 
     let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue, &previous_render_view);
