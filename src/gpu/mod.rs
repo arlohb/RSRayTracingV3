@@ -13,7 +13,7 @@ use crate::ray_tracer::Scene;
 pub struct Gpu {
   shared_gpu: Arc<SharedGpu>,
   render_pipeline: wgpu::RenderPipeline,
-  render_texture: wgpu::Texture,
+  previous_render_texture: wgpu::Texture,
   connection: Connection,
 }
 
@@ -41,7 +41,7 @@ impl Gpu {
     scene: Arc<Mutex<Scene>>,
     render_target: &RenderTarget,
   ) -> Gpu {
-    let (render_texture, render_view) = Gpu::create_render_texture(
+    let (previous_render_texture, previous_render_view) = Gpu::create_render_texture(
       &shared_gpu,
       wgpu::Extent3d {
         width: render_target.size.0,
@@ -50,7 +50,7 @@ impl Gpu {
       },
     );
 
-    let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue, &render_view);
+    let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue, &previous_render_view);
 
     let pipeline_layout = shared_gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: None,
@@ -86,7 +86,7 @@ impl Gpu {
     Gpu {
       shared_gpu,
       render_pipeline,
-      render_texture,
+      previous_render_texture,
       connection,
     }
   }
@@ -121,7 +121,7 @@ impl Gpu {
 
     encoder.copy_texture_to_texture(
       render_target.render_texture.as_image_copy(),
-      self.render_texture.as_image_copy(),
+      self.previous_render_texture.as_image_copy(),
       wgpu::Extent3d {
         width: render_target.size.0,
         height: render_target.size.1,
