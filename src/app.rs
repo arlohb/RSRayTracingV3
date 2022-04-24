@@ -60,6 +60,8 @@ impl App {
     frame_times: Arc<Mutex<crate::utils::history::History>>,
     initial_render_size: (u32, u32),
   ) -> App {
+    /* #region Initialize the GPU */
+
     let instance = wgpu::Instance::new(wgpu::Backends::all());
     let surface = unsafe { instance.create_surface(window) };
     let adapter = instance
@@ -72,8 +74,8 @@ impl App {
       .await
       .expect("Failed to find an appropriate adapter");
       
-      // Create the logical device and command queue
-      let (device, queue) = adapter
+    // Create the logical device and command queue
+    let (device, queue) = adapter
       .request_device(
         &wgpu::DeviceDescriptor {
           label: None,
@@ -86,6 +88,9 @@ impl App {
       .await
       .expect("Failed to create device");
 
+    /* #endregion */
+    /* #region Initialize the surface */
+
     let size = window.inner_size();
     let surface_format = surface.get_preferred_format(&adapter).expect("Surface format not supported");
     let surface_config = wgpu::SurfaceConfiguration {
@@ -97,15 +102,20 @@ impl App {
     };
     surface.configure(&device, &surface_config);
 
+    /* #endregion */
+    /* #region Create the Egui UI */
+
     let egui_winit_state = egui_winit::State::new(4096, window);
     let egui_context = egui::Context::default();
 
-    let render_target = crate::gpu::RenderTarget::new(&device, initial_render_size);
-
     let ui = crate::Ui::new(scene.clone(), frame_times);
-
+    
     let egui_rpass = RenderPass::new(&device, surface_format, 1);
 
+    /* #endregion */
+    /* #region Create the renderer */
+    
+    let render_target = crate::gpu::RenderTarget::new(&device, initial_render_size);
     let (previous_render_texture, previous_render_view) = RenderTarget::create_render_texture(
       &device,
       render_target.size,
@@ -144,6 +154,8 @@ impl App {
       multiview: None,
     });
 
+    /* #endregion */
+
     App {
       surface,
       device,
@@ -171,6 +183,8 @@ impl App {
     &mut self,
     window: &winit::window::Window,
   ) {
+    /* #region Render the scene */
+
     self.connection.update_buffers(&self.queue, self.render_target.size);
 
     let mut encoder =
@@ -211,6 +225,9 @@ impl App {
       &mut self.egui_rpass,
     );
 
+    /* #endregion */
+    /* #region Render the UI */
+
     let output_frame = match self.surface.get_current_texture() {
       Ok(frame) => frame,
       Err(e) => {
@@ -240,7 +257,6 @@ impl App {
       repaint_signal: self.epi_repaint_signal.clone(),
     });
 
-    // Draw the demo application.
     self.ui.update(
       &self.egui_context,
       &frame,
@@ -285,6 +301,8 @@ impl App {
 
     // Redraw egui
     output_frame.present();
+
+    /* #endregion */
   }
 }
 
