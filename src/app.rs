@@ -13,7 +13,7 @@ use winit::{
 };
 
 use crate::ray_tracer::Scene;
-use crate::gpu::SharedGpu;
+use crate::gpu::{SharedGpu, Connection, RenderTarget};
 
 /// A custom event type for the winit app.
 pub enum Event {
@@ -33,7 +33,11 @@ impl epi::backend::RepaintSignal for RepaintSignal {
 pub struct App {
   shared_gpu: Arc<SharedGpu>,
   ui: crate::ui::Ui,
-  render_target: crate::gpu::RenderTarget,
+
+  render_pipeline: wgpu::RenderPipeline,
+  previous_render_texture: wgpu::Texture,
+  connection: Connection,
+  render_target: RenderTarget,
 
   surface_config: wgpu::SurfaceConfiguration,
 
@@ -70,13 +74,55 @@ impl App {
 
     let render_target = crate::gpu::RenderTarget::new(&shared_gpu, initial_render_size);
 
-    let ui = crate::Ui::new(scene, frame_times);
+    let ui = crate::Ui::new(scene.clone(), frame_times);
 
     let egui_rpass = RenderPass::new(&shared_gpu.device, surface_format, 1);
+
+    let (previous_render_texture, previous_render_view) = RenderTarget::create_render_texture(
+      &shared_gpu,
+      render_target.size,
+    );
+
+    let connection = Connection::new(scene.clone(), &shared_gpu.device, &shared_gpu.queue, &previous_render_view);
+
+    let pipeline_layout = shared_gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+      label: None,
+      bind_group_layouts: &[&connection.bind_group_layout],
+      push_constant_ranges: &[],
+    });
+
+    let render_pipeline = shared_gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+      label: None,
+      layout: Some(&pipeline_layout),
+      vertex: wgpu::VertexState {
+        module: &crate::gpu::vert_shader(&shared_gpu.device),
+        entry_point: "vs_main",
+        buffers: &[],
+      },
+      fragment: Some(wgpu::FragmentState {
+        module: &crate::gpu::frag_shader(&shared_gpu.device, scene.lock().unwrap().reflection_limit),
+        entry_point: "fs_main",
+        targets: &[
+          wgpu::ColorTargetState {
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+          }
+        ],
+      }),
+      primitive: wgpu::PrimitiveState::default(),
+      depth_stencil: None,
+      multisample: wgpu::MultisampleState::default(),
+      multiview: None,
+    });
 
     App {
       shared_gpu,
       ui,
+
+      render_pipeline,
+      previous_render_texture,
+      connection,
       render_target,
 
       surface_config,
@@ -94,6 +140,46 @@ impl App {
     &mut self,
     window: &winit::window::Window,
   ) {
+    self.connection.update_buffers(&self.shared_gpu.queue, self.render_target.size);
+
+    let mut encoder =
+      self.shared_gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });    
+
+    {
+      let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: None,
+        color_attachments: &[wgpu::RenderPassColorAttachment {
+          view: &self.render_target.render_view,
+          resolve_target: None,
+          ops: wgpu::Operations {
+            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+            store: true,
+          },
+        }],
+        depth_stencil_attachment: None,
+      });
+      rpass.set_pipeline(&self.render_pipeline);
+      rpass.set_bind_group(0, &self.connection.bind_group, &[]);
+      rpass.draw(0..6, 0..1);
+    }
+
+    encoder.copy_texture_to_texture(
+      self.render_target.render_texture.as_image_copy(),
+      self.previous_render_texture.as_image_copy(),
+      wgpu::Extent3d {
+        width: self.render_target.size.0,
+        height: self.render_target.size.1,
+        depth_or_array_layers: 1,
+      },
+    );
+
+    self.shared_gpu.queue.submit(Some(encoder.finish()));
+
+    self.render_target.update(
+      &self.shared_gpu.device,
+      &mut self.egui_rpass,
+    );
+
     let output_frame = match self.shared_gpu.surface.get_current_texture() {
       Ok(frame) => frame,
       Err(e) => {
@@ -194,8 +280,6 @@ pub async fn run(
     initial_render_size,
   );
 
-  let mut gpu = crate::gpu::Gpu::new(shared_gpu.clone(), scene, &app.render_target);
-
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Poll;
     match event {
@@ -207,8 +291,6 @@ pub async fn run(
           if let Ok(mut frame_times) = frame_times.try_lock() {
             frame_times.add(elapsed);
           }
-
-          gpu.render(&mut app.egui_rpass, &mut app.render_target);
           app.render(&window);
         }
       }
