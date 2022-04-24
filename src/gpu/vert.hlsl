@@ -1,15 +1,3 @@
-#pragma vs vs_main;
-
-struct VertexInput {
-  float3 position: POSITION;
-};
-
-struct VertexOutput {
-  float3 position: POSITION;
-};
-
-VertexOutput vs_main(VertexInput input) {
-  VertexOutput output;
-  output.position = input.position;
-  return output;
+float4 vs_main(float3 input : POSITION) : SV_POSITION {
+  return float4(input, 1.0);
 }
