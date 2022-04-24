@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use image::{EncodableLayout, GenericImageView};
 
-use crate::ray_tracer::Scene;
+use crate::ray_tracer::{Scene, Vec3};
 
 pub struct FrameData {
   pub jitter: (f32, f32),
@@ -42,9 +42,25 @@ pub struct Connection {
   pub lights: wgpu::Buffer,
   pub config: wgpu::Buffer,
   pub frame_data_buffer: wgpu::Buffer,
+
+  pub vertex_buffer: wgpu::Buffer,
+  pub index_buffer: wgpu::Buffer,
 }
 
 impl Connection {
+  pub const VERTICES_NUM: usize = 4;
+  pub const VERTICES: [Vec3; Connection::VERTICES_NUM] = [
+    Vec3 { x: -1., y: -1., z: 0. },
+    Vec3 { x: -1., y: 1., z: 0. },
+    Vec3 { x: 1., y: 1., z: 0. },
+    Vec3 { x: 1., y: -1., z: 0. },
+  ];
+  pub const INDICES_NUM: usize = 6;
+  pub const INDICES: [u16; Connection::INDICES_NUM] = [
+    0, 2, 1,
+    0, 3, 2,
+  ];
+
   fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
       label: None,
@@ -210,6 +226,58 @@ impl Connection {
     [objects, lights, config, frame_data_buffer]
   }
 
+  pub fn vertex_buffer_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+    wgpu::VertexBufferLayout {
+      array_stride: 16,
+      step_mode: wgpu::VertexStepMode::Vertex,
+      attributes: &[
+        wgpu::VertexAttribute {
+          offset: 0,
+          shader_location: 0,
+          format: wgpu::VertexFormat::Float32x3,
+        },
+      ],
+    }
+  }
+
+  fn create_model_buffers(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer) {
+    use wgpu::util::DeviceExt;
+
+    let vertex_bytes = crate::utils::bytes::bytes_concat_fixed_in_n::<16, {Connection::VERTICES_NUM * 16}>(
+      Connection::VERTICES
+        .iter()
+        .map(|vec| vec.as_bytes::<16>())
+        .collect::<Vec<_>>()
+        .as_slice()
+    );
+
+    let vertex_buffer = device.create_buffer_init(
+      &wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: &vertex_bytes,
+        usage: wgpu::BufferUsages::VERTEX,
+      }
+    );
+
+    let index_bytes = crate::utils::bytes::bytes_concat_fixed_in_n::<2, {Connection::INDICES_NUM * 2}>(
+      Connection::INDICES
+        .iter()
+        .map(|index| index.to_le_bytes())
+        .collect::<Vec<_>>()
+        .as_slice()
+    );
+
+    let index_buffer = device.create_buffer_init(
+      &wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: &index_bytes,
+        usage: wgpu::BufferUsages::INDEX,
+      }
+    );
+
+    (vertex_buffer, index_buffer)
+  }
+
   pub fn new(
     scene: Arc<Mutex<Scene>>,
     device: &wgpu::Device,
@@ -257,6 +325,8 @@ impl Connection {
       ],
     });
 
+    let (vertex_buffer, index_buffer) = Connection::create_model_buffers(device);
+
     Connection {
       bind_group,
       bind_group_layout,
@@ -270,6 +340,9 @@ impl Connection {
       lights,
       config,
       frame_data_buffer,
+
+      vertex_buffer,
+      index_buffer,
     }
   }
 

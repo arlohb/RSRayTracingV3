@@ -135,7 +135,7 @@ impl App {
       vertex: wgpu::VertexState {
         module: &crate::gpu::vert_shader(&device),
         entry_point: "vs_main",
-        buffers: &[],
+        buffers: &[Connection::vertex_buffer_layout()],
       },
       fragment: Some(wgpu::FragmentState {
         module: &crate::gpu::frag_shader(&device, scene.lock().unwrap().reflection_limit),
@@ -148,7 +148,15 @@ impl App {
           }
         ],
       }),
-      primitive: wgpu::PrimitiveState::default(),
+      primitive: wgpu::PrimitiveState {
+        topology: wgpu::PrimitiveTopology::TriangleList,
+        strip_index_format: None,
+        front_face: wgpu::FrontFace::Ccw,
+        cull_mode: Some(wgpu::Face::Back),
+        polygon_mode: wgpu::PolygonMode::Fill,
+        unclipped_depth: false,
+        conservative: false,
+      },
       depth_stencil: None,
       multisample: wgpu::MultisampleState::default(),
       multiview: None,
@@ -197,15 +205,20 @@ impl App {
           view: &self.render_target.render_view,
           resolve_target: None,
           ops: wgpu::Operations {
-            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+            load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
             store: true,
           },
         }],
         depth_stencil_attachment: None,
       });
+
       rpass.set_pipeline(&self.render_pipeline);
       rpass.set_bind_group(0, &self.connection.bind_group, &[]);
-      rpass.draw(0..6, 0..1);
+
+      rpass.set_vertex_buffer(0, self.connection.vertex_buffer.slice(..));
+      rpass.set_index_buffer(self.connection.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
+      rpass.draw_indexed(0..(Connection::INDICES_NUM as u32), 0, 0..1);
     }
 
     encoder.copy_texture_to_texture(

@@ -1,11 +1,18 @@
+// use inline_spirv::include_spirv;
 use std::borrow::Cow;
 
 pub fn vert_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
+  // let spirv = include_spirv!("src/gpu/vert.hlsl", vert, hlsl, entry="vs_main");
+
   device.create_shader_module(&wgpu::ShaderModuleDescriptor {
     label: None,
     source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(
       include_str!("vert.wgsl"),
     )),
+    // source: wgpu::ShaderSource::SpirV(Cow::Borrowed(
+    //   // spirv.as_binary(),
+    //   spirv
+    // )),
   })
 }
 
