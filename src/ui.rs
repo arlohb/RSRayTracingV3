@@ -30,7 +30,7 @@ impl Ui {
     ctx: &egui::Context,
     _: &epi::Frame,
     render_target: &mut crate::gpu::RenderTarget,
-    shared_gpu: &crate::gpu::SharedGpu,
+    device: &wgpu::Device,
   ) {
     let now = now_millis();
     // delta_time is in seconds
@@ -80,7 +80,7 @@ impl Ui {
           .show(ui, |ui| {
             let size = (ui.available_size().x as u32, ui.available_size().y as u32);
             if size != render_target.size {
-              render_target.resize(shared_gpu, size);
+              render_target.resize(device, size);
             }
 
             ui.image(id, [render_target.size.0 as f32, render_target.size.1 as f32]);
