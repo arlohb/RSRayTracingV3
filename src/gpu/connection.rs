@@ -89,7 +89,7 @@ impl Connection {
           binding: 2,
           visibility: wgpu::ShaderStages::FRAGMENT,
           ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Storage { read_only: true },
+            ty: wgpu::BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: None,
           },
@@ -125,7 +125,7 @@ impl Connection {
           binding: 6,
           visibility: wgpu::ShaderStages::FRAGMENT,
           ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Storage { read_only: true },
+            ty: wgpu::BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: None,
           },
@@ -209,7 +209,7 @@ impl Connection {
       label: None,
       size: Scene::BUFFER_SIZE.2 as u64,
       mapped_at_creation: false,
-      usage: wgpu::BufferUsages::STORAGE
+      usage: wgpu::BufferUsages::UNIFORM
         | wgpu::BufferUsages::COPY_DST
         | wgpu::BufferUsages::COPY_SRC,
     });
@@ -218,7 +218,7 @@ impl Connection {
       label: None,
       size: FrameData::BUFFER_SIZE as u64,
       mapped_at_creation: false,
-      usage: wgpu::BufferUsages::STORAGE
+      usage: wgpu::BufferUsages::UNIFORM
         | wgpu::BufferUsages::COPY_DST
         | wgpu::BufferUsages::COPY_SRC,
     });

@@ -138,7 +138,7 @@ impl App {
         buffers: &[Connection::vertex_buffer_layout()],
       },
       fragment: Some(wgpu::FragmentState {
-        module: &crate::gpu::frag_shader(&device, scene.lock().unwrap().reflection_limit),
+        module: &crate::gpu::frag_shader(&device),
         entry_point: "fs_main",
         targets: &[
           wgpu::ColorTargetState {
