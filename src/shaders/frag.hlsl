@@ -93,7 +93,6 @@ static float s_seed = 42.;
 static float2 s_pixel = float2(0., 0.);
 static uint s_object_count;
 
-
 // https://stackoverflow.com/questions/5149544/can-i-generate-a-random-number-inside-a-pixel-shader
 // I extended this a bit
 float random_seed() {
