@@ -76,76 +76,85 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
 
   ui.separator();
 
-  egui::ScrollArea::vertical().id_source("Objects").show(ui, |ui| {
-    let mut has_removed_object = false;
+  egui::ScrollArea::vertical()
+    .id_source("Objects")
+    .always_show_scroll(true)
+    .show(ui, |ui| {
+      let mut has_removed_object = false;
 
-    for i in 0..scene.objects.len() {
-      let index = if has_removed_object { i - 1 } else { i };
+      for i in 0..scene.objects.len() {
+        let index = if has_removed_object { i - 1 } else { i };
+        let name = scene.objects[index].name.clone();
+        egui::CollapsingHeader::new(&name)
+          // If one isn't open, size is incorrect
+          .default_open(index == 0)
+          .show(ui, |ui| {
+            data_row(ui, name, |ui| {
+              if ui.add(egui::Button::new("❌")).clicked() {
+                scene.objects.remove(index);
+                has_removed_object = true;
+              }
+            });
 
-      ui.horizontal(|ui| {
-        ui.label(&scene.objects[index].name);
+            if has_removed_object {
+              return;
+            }
 
-        if ui.add(egui::Button::new("❌")).clicked() {
-          scene.objects.remove(index);
-          has_removed_object = true;
-        }
-      });
+            let object = &mut scene.objects[index];
 
-      if has_removed_object {
-        continue;
-      }
+            data_row(ui, "position", |ui| {
+              vec3_widget(ui, object.geometry.position_as_mut());
+            });
 
-      let object = &mut scene.objects[index];
+            match &mut object.geometry {
+              Geometry::Sphere { center: _, radius } => {
+                data_row(ui, "radius", |ui| {
+                  ui.add(egui::DragValue::new(radius)
+                    .fixed_decimals(1)
+                    .speed(0.1));
+                });
+              },
+              Geometry::Plane { center: _, normal, size } => {
+                data_row(ui, "normal", |ui| {
+                  vec3_widget(ui, normal);
+                  
+                  *normal = normal.normalize();
+                });
 
-      data_row(ui, "position", |ui| {
-        vec3_widget(ui, object.geometry.position_as_mut());
-      });
+                data_row(ui, "size", |ui| {
+                  ui.add(egui::DragValue::new(size)
+                    .fixed_decimals(1)
+                    .speed(0.1));
+                });
+              }
+            }
 
-      match &mut object.geometry {
-        Geometry::Sphere { center: _, radius } => {
-          data_row(ui, "radius", |ui| {
-            ui.add(egui::DragValue::new(radius)
-              .fixed_decimals(1)
-              .speed(0.1));
+            data_row(ui, "colour", |ui| {
+              colour_widget(ui, &mut object.material.colour);
+            });
+            data_row(ui, "emission", |ui| {
+              colour_widget(ui, &mut object.material.emission);
+            });
+            data_row(ui, "strength", |ui| {
+              ui.add(egui::DragValue::new(&mut object.material.emission_strength)
+                .clamp_range::<f32>(0.0..=10.));
+            });
+            data_row(ui, "metallic", |ui| {
+              ui.add(egui::DragValue::new(&mut object.material.metallic)
+                .clamp_range::<f32>(0.0..=1.)
+                .speed(0.1));
+            });
+            data_row(ui, "roughness", |ui| {
+              ui.add(egui::DragValue::new(&mut object.material.roughness)
+                .clamp_range::<f32>(0.0..=1.)
+                .speed(0.1));
+            });
           });
-        },
-        Geometry::Plane { center: _, normal, size } => {
-          data_row(ui, "normal", |ui| {
-            vec3_widget(ui, normal);
-            
-            *normal = normal.normalize();
-          });
+      };
 
-          data_row(ui, "size", |ui| {
-            ui.add(egui::DragValue::new(size)
-              .fixed_decimals(1)
-              .speed(0.1));
-          });
-        }
-      }
-
-      data_row(ui, "colour", |ui| {
-        colour_widget(ui, &mut object.material.colour);
-      });
-      data_row(ui, "emission", |ui| {
-        colour_widget(ui, &mut object.material.emission);
-      });
-      data_row(ui, "strength", |ui| {
-        ui.add(egui::DragValue::new(&mut object.material.emission_strength)
-          .clamp_range::<f32>(0.0..=10.));
-      });
-      data_row(ui, "metallic", |ui| {
-        ui.add(egui::DragValue::new(&mut object.material.metallic)
-          .clamp_range::<f32>(0.0..=1.)
-          .speed(0.1));
-      });
-      data_row(ui, "roughness", |ui| {
-        ui.add(egui::DragValue::new(&mut object.material.roughness)
-          .clamp_range::<f32>(0.0..=1.)
-          .speed(0.1));
-      });
-    };
-  });
+      // padding so that the colour widget fits in the window
+      for _ in 0..20 { ui.label(""); }
+    });
 }
 
 pub fn settings_panel (
@@ -158,8 +167,12 @@ pub fn settings_panel (
   let fps = 1000. / frame_times.lock().unwrap().average(None);
   let recent_fps = 1000. / frame_times.lock().unwrap().average(Some(1000.));
 
-  ui.label(format!("5 sec average: {:.1}", fps));
-  ui.label(format!("1 sec average: {:.1}", recent_fps));
+  data_row(ui, "5 sec average", |ui| {
+    ui.label(format!("{:.1}", fps));
+  });
+  data_row(ui, "1 sec average", |ui| {
+    ui.label(format!("{:.1}", recent_fps));
+  });
 
   egui::plot::Plot::new("Fps history")
     .legend(egui::plot::Legend::default())
@@ -188,12 +201,12 @@ pub fn settings_panel (
     vec3_widget(ui, &mut scene.camera.rotation);
   });
 
-  ui.separator();
+  data_row(ui, "bounces", |ui| {
+    ui.add(egui::DragValue::new(&mut scene.reflection_limit)
+      .clamp_range::<u32>(2..=10));
+  });
 
-  ui.label(format!("bounces   {}", scene.reflection_limit));
-
-  ui.horizontal(|ui| {
-    ui.label("fov");
+  data_row(ui, "fov", |ui| {
     ui.add(egui::DragValue::new(&mut scene.camera.fov)
       .clamp_range::<f64>(1.0..=90.));
   });

@@ -108,7 +108,7 @@ impl Scene {
         }
 
         objects.push(Object {
-          name: i.to_string(),
+          name: format!("Sphere {}", i),
           material: Material {
             colour: (rng.gen(), rng.gen(), rng.gen()),
             emission: [
@@ -135,7 +135,7 @@ impl Scene {
     }
 
     objects.push(Object {
-      name: "plane".to_string(),
+      name: "Plane".to_string(),
       geometry: Geometry::Plane {
         center: Vec3 { x: 0., y: 0., z: 0. },
         normal: Vec3 { x: 0., y: 1., z: 0. },
@@ -212,10 +212,10 @@ impl Scene {
 
 impl PartialEq for Scene {
   fn eq(&self, other: &Scene) -> bool {
-    self.camera == other.camera &&
+    (self.camera == other.camera) &
     {
       if self.objects.len() != other.objects.len() {
-        return false;
+        false
       } else {
         for (i, object) in self.objects.iter().enumerate() {
           if *object != other.objects[i] {
@@ -223,12 +223,12 @@ impl PartialEq for Scene {
           }
         }
 
-        return true;
+        true
       }
-    } &&
+    } &
     {
       if self.lights.len() != other.lights.len() {
-        return false;
+        false
       } else {
         for (i, light) in self.lights.iter().enumerate() {
           if *light != other.lights[i] {
@@ -236,12 +236,12 @@ impl PartialEq for Scene {
           }
         }
 
-        return true;
+        true
       }
-    } &&
-    self.background_colour == other.background_colour &&
-    self.ambient_light == other.ambient_light &&
-    self.reflection_limit == other.reflection_limit &&
-    self.do_objects_spin == other.do_objects_spin
+    } &
+    (self.background_colour == other.background_colour) &
+    (self.ambient_light == other.ambient_light) &
+    (self.reflection_limit == other.reflection_limit) &
+    (self.do_objects_spin == other.do_objects_spin)
   }
 }
