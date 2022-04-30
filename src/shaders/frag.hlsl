@@ -3,11 +3,6 @@
 #include "random.hlsl"
 #include "ray.hlsl"
 
-float roughness_to_phong_alpha(float roughness) {
-  float smoothness = 1. - roughness;
-  return pow(1000., smoothness * smoothness);
-}
-
 float3 shade(inout Ray ray, Hit hit) {
   // need to use SampleLevel not Sample because this is done conditionally
   float3 hdri = t_hdri.SampleLevel(s_tex, float2(
@@ -26,7 +21,7 @@ float3 shade(inout Ray ray, Hit hit) {
   ray.origin = hit.position + hit.normal * 0.001;
 
   float3 reflection_ray = reflect(ray.direction, hit.normal);
-  float3 hemisphere_sample = random_in_hemisphere(reflection_ray, roughness_to_phong_alpha(material.roughness));
+  float3 hemisphere_sample = random_in_hemisphere(reflection_ray, material.roughness);
   ray.direction = hemisphere_sample;
 
   ray.energy *= (2. * material.colour * clamp(dot(hit.normal, ray.direction), 0., 1.));

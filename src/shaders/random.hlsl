@@ -36,7 +36,14 @@ float3x3 get_tangent_space(float3 normal) {
   return float3x3(tangent, binormal, normal);
 }
 
-float3 random_in_hemisphere(float3 normal, float phong_alpha) {
+float3 random_in_hemisphere(float3 normal, float roughness) {
+  if (roughness == 0.) {
+    return normal;
+  }
+
+  float smoothness = 1. - roughness;
+  float phong_alpha = pow(1000., smoothness * smoothness);
+
   float cos_theta = pow(random(), 1. / (phong_alpha + 1.));
   float sin_theta = sqrt(1. - (cos_theta * cos_theta));
   float phi = 2. * PI * random();

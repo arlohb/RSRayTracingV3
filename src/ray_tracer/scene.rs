@@ -122,7 +122,7 @@ impl Scene {
             ][rng.gen_range(0..7)],
             emission_strength: if rng.gen::<f32>() > 0.85 { rng.gen_range(5.0..=15.) } else { 0. },
             metallic: rng.gen(),
-            roughness: rng.gen(),
+            roughness: if rng.gen::<f32>() < 0.1 { 0. } else { rng.gen() },
           },
           geometry: Geometry::Sphere {
             center: position,
