@@ -135,9 +135,27 @@ impl Connection {
     })
   }
 
-  fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> (wgpu::TextureView, wgpu::Sampler) {
-    let reader = image::io::Reader::open("./assets/table_mountain_1_8k.exr").unwrap();
-    let hdri = reader.decode().unwrap();
+  async fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> (wgpu::TextureView, wgpu::Sampler) {
+    #[cfg(target_arch = "wasm32")]
+    let hdri = {
+      // use wasm_bindgen::JsCast;
+      // use web_sys::Response;
+      // use wasm_bindgen_futures::JsFuture;
+
+      // let window = web_sys::window().unwrap();
+      // let response_promise = window.fetch_with_str("./assets/table_mountain_1_8k.exr");
+
+      // let response: Response = JsFuture::from(response_promise).await.unwrap().dyn_into().unwrap();
+      // let bytes = JsFuture::from(response.array_buffer().unwrap()).await.unwrap();
+
+      // let bytes = include_bytes!("../../assets/table_mountain_1_8k.exr");
+      // image::load_from_memory_with_format(bytes, image::ImageFormat::OpenExr).unwrap()
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    let hdri = {
+      let reader = image::io::Reader::open("./assets/table_mountain_1_8k.exr").unwrap();
+      reader.decode().unwrap()
+    };
     let size = hdri.dimensions();
 
     let texture_size = wgpu::Extent3d {
@@ -278,13 +296,13 @@ impl Connection {
     (vertex_buffer, index_buffer)
   }
 
-  pub fn new(
+  pub async fn new(
     scene: Arc<Mutex<Scene>>,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     render_view: &wgpu::TextureView,
   ) -> Self {
-    let (hdri_texture_view, hdri_sampler) = Connection::load_hdri(device, queue);
+    let (hdri_texture_view, hdri_sampler) = Connection::load_hdri(device, queue).await;
 
     let [objects, lights, config, frame_data_buffer] = Connection::create_buffers(device);
 

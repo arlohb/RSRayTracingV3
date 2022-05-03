@@ -1,5 +1,4 @@
 use std::{
-  time::Instant,
   iter,
   sync::{Arc, Mutex},
 };
@@ -23,6 +22,9 @@ pub enum Event {
 /// This is the repaint signal type that egui needs for requesting a repaint from another thread.
 /// It sends the custom RequestRedraw event to the winit event loop.
 pub struct RepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<Event>>);
+
+unsafe impl Send for RepaintSignal {}
+unsafe impl Sync for RepaintSignal {}
 
 impl epi::backend::RepaintSignal for RepaintSignal {
   fn request_repaint(&self) {
@@ -79,9 +81,9 @@ impl App {
       .request_device(
         &wgpu::DeviceDescriptor {
           label: None,
-          features: wgpu::Features::BUFFER_BINDING_ARRAY
-            | wgpu::Features::STORAGE_RESOURCE_BINDING_ARRAY,
-          limits: wgpu::Limits::default(),
+          // features: wgpu::Features::BUFFER_BINDING_ARRAY,
+          features: wgpu::Features::empty(),
+          limits: wgpu::Limits::downlevel_webgl2_defaults(),
         },
         None,
       )
@@ -121,7 +123,7 @@ impl App {
       render_target.size,
     );
 
-    let connection = Connection::new(scene.clone(), &device, &queue, &previous_render_view);
+    let connection = Connection::new(scene.clone(), &device, &queue, &previous_render_view).await;
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
       label: None,
@@ -253,7 +255,7 @@ impl App {
       .create_view(&wgpu::TextureViewDescriptor::default());
 
     // Begin to draw the UI frame.
-    let egui_start = Instant::now();
+    let egui_start = crate::utils::time::now_millis();
     let input = self.egui_winit_state.take_egui_input(window);
     self.egui_context.begin_frame(input);
     let app_output = epi::backend::AppOutput::default();
@@ -281,8 +283,8 @@ impl App {
     let output = self.egui_context.end_frame();
     let paint_jobs = self.egui_context.tessellate(output.shapes);
 
-    let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
-    self.previous_frame_time = Some(frame_time);
+    let frame_time = (crate::utils::time::now_millis() - egui_start) / 1000.;
+    self.previous_frame_time = Some(frame_time as f32);
 
     let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
       label: Some("encoder"),
