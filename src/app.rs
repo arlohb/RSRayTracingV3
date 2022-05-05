@@ -83,7 +83,11 @@ impl App {
           label: None,
           // features: wgpu::Features::BUFFER_BINDING_ARRAY,
           features: wgpu::Features::empty(),
-          limits: wgpu::Limits::downlevel_webgl2_defaults(),
+          limits: if cfg!(target_arch = "wasm32") {
+            wgpu::Limits::downlevel_webgl2_defaults()
+          } else {
+            wgpu::Limits::default()
+          },
         },
         None,
       )

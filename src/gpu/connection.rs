@@ -135,28 +135,21 @@ impl Connection {
     })
   }
 
+  fn load_image(file_name: &str) -> ((u32, u32), Vec<u8>) {
+    let reader = image::io::Reader::open(file_name).unwrap();
+    let im = reader.decode().unwrap();
+
+    (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
+  }
+
   async fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> (wgpu::TextureView, wgpu::Sampler) {
-    #[cfg(target_arch = "wasm32")]
-    let hdri = {
-      // use wasm_bindgen::JsCast;
-      // use web_sys::Response;
-      // use wasm_bindgen_futures::JsFuture;
-
-      // let window = web_sys::window().unwrap();
-      // let response_promise = window.fetch_with_str("./assets/table_mountain_1_8k.exr");
-
-      // let response: Response = JsFuture::from(response_promise).await.unwrap().dyn_into().unwrap();
-      // let bytes = JsFuture::from(response.array_buffer().unwrap()).await.unwrap();
-
-      // let bytes = include_bytes!("../../assets/table_mountain_1_8k.exr");
-      // image::load_from_memory_with_format(bytes, image::ImageFormat::OpenExr).unwrap()
+    let hdri_file = if cfg!(target_arch = "wasm32") {
+      "./assets/table_mountain_1_2k.exr"
+    } else {
+      "./assets/table_mountain_1_8k.exr"
     };
-    #[cfg(not(target_arch = "wasm32"))]
-    let hdri = {
-      let reader = image::io::Reader::open("./assets/table_mountain_1_8k.exr").unwrap();
-      reader.decode().unwrap()
-    };
-    let size = hdri.dimensions();
+
+    let (size, hdri_bytes) = Connection::load_image(hdri_file);
 
     let texture_size = wgpu::Extent3d {
       width: size.0,
@@ -181,7 +174,7 @@ impl Connection {
         origin: wgpu::Origin3d::ZERO,
         aspect: wgpu::TextureAspect::All,
       },
-      hdri.to_rgba32f().as_bytes(),
+      hdri_bytes.as_slice(),
       wgpu::ImageDataLayout {
         offset: 0,
         bytes_per_row: std::num::NonZeroU32::new(16 * size.0),
