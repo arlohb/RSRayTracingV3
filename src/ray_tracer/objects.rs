@@ -107,6 +107,9 @@ impl Geometry {
 /// Stores all the information about an object.
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct Object {
+  /// The id of the object.
+  /// Has to be unique.
+  pub id: u128,
   /// The name of the object.
   /// 
   /// This doesn't have to be unique, it's just for the editor.
@@ -126,6 +129,16 @@ impl Object {
       &self.material.as_bytes(),
       &self.geometry.as_bytes(),
     ])
+  }
+
+  /// Creates a new object.
+  pub fn new(name: impl ToString, material: Material, geometry: Geometry) -> Self {
+    Self {
+      id: uuid::Uuid::new_v4().as_u128(),
+      name: name.to_string(),
+      material,
+      geometry,
+    }
   }
 }
 

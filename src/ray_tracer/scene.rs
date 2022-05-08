@@ -27,20 +27,20 @@ impl Scene {
   pub fn simple() -> Scene {
     Scene {
       objects: vec![
-        Object {
-          name: "Sphere".to_string(),
-          geometry: Geometry::Sphere {
-            center: Vec3 { x: 0., y: 0., z: 0. },
-            radius: 1.,
-          },
-          material: Material {
+        Object::new(
+          "Sphere",
+          Material {
             colour: (1., 0., 0.),
             emission: (0., 0., 0.),
             emission_strength: 0.,
             roughness: 0.5,
             metallic: 1.
           },
-        },
+          Geometry::Sphere {
+            center: Vec3 { x: 0., y: 0., z: 0. },
+            radius: 1.,
+          },
+        ),
       ],
       lights: vec![
         Light::Point {
@@ -107,9 +107,9 @@ impl Scene {
           continue;
         }
 
-        objects.push(Object {
-          name: format!("Sphere {}", i),
-          material: Material {
+        objects.push(Object::new(
+          format!("Sphere {}", i),
+          Material {
             colour: (rng.gen(), rng.gen(), rng.gen()),
             emission: [
               (1., 1., 1.),
@@ -124,31 +124,31 @@ impl Scene {
             metallic: rng.gen(),
             roughness: if rng.gen::<f32>() < 0.1 { 0. } else { rng.gen() },
           },
-          geometry: Geometry::Sphere {
+          Geometry::Sphere {
             center: position,
             radius,
           },
-        });
+        ));
 
         break;
       }
     }
 
-    objects.push(Object {
-      name: "Plane".to_string(),
-      geometry: Geometry::Plane {
-        center: Vec3 { x: 0., y: 0., z: 0. },
-        normal: Vec3 { x: 0., y: 1., z: 0. },
-        size: 100000.,
-      },
-      material: Material {
+    objects.push(Object::new(
+      "Plane",
+      Material {
         colour: (0.5, 0.5, 0.5),
         emission: (0., 0., 0.),
         emission_strength: 0.,
         metallic: 0.2,
         roughness: 0.5,
       },
-    });
+      Geometry::Plane {
+        center: Vec3 { x: 0., y: 0., z: 0. },
+        normal: Vec3 { x: 0., y: 1., z: 0. },
+        size: 100000.,
+      },
+    ));
 
     Scene {
       camera: Camera {

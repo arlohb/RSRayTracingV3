@@ -32,37 +32,37 @@ fn data_row(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, widget: impl 
 pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
   ui.horizontal(|ui| {
     if ui.add(egui::Button::new("➕ sphere")).clicked() {
-      scene.objects.push(Object {
-        name: String::from("sphere"),
-        material: Material {
+      scene.objects.push(Object::new(
+        "sphere",
+        Material {
           colour: (1., 0., 0.),
           emission: (0., 0., 0.),
           emission_strength: 0.,
           metallic: 0.5,
           roughness: 0.5,
         },
-        geometry: Geometry::Sphere {
+        Geometry::Sphere {
           center: Vec3 { x: 0., y: 0., z: 0., },
           radius: 1.,
         },
-      });
+      ));
     }
     if ui.add(egui::Button::new("➕ plane")).clicked() {
-      scene.objects.push(Object {
-        name: String::from("plane"),
-        material: Material {
+      scene.objects.push(Object::new(
+        "plane",
+        Material {
           colour: (1., 0., 0.),
           emission: (0., 0., 0.),
           emission_strength: 0.,
           metallic: 0.5,
           roughness: 0.5,
         },
-        geometry: Geometry::Plane {
+        Geometry::Plane {
           center: Vec3 { x: 0., y: 0., z: 0., },
           normal: Vec3 { x: 0., y: 1., z: 0., },
           size: 5.,
         },
-      });
+      ));
     }
 
     if ui.add(egui::Button::new("JSON")).clicked() {
