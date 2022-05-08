@@ -5,7 +5,6 @@ import { mime } from "https://deno.land/x/mimetypes@v1.0.0/mod.ts";
 const serveFiles = (req: Request) => staticFiles('public', {
   setHeaders: (headers, path, _stats) => {
     const mimeType = mime.getType(path) as string;
-    console.log(mimeType);
     headers.append("Content-Type", mimeType);
   },
 })({ 
