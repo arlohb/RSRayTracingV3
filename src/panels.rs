@@ -66,7 +66,7 @@ pub fn object_panel (ui: &mut egui::Ui, scene: &mut Scene) {
     }
 
     if ui.add(egui::Button::new("JSON")).clicked() {
-      println!("{}", serde_json::to_string_pretty(&scene).unwrap());
+      crate::utils::log!("{}", serde_json::to_string_pretty(&scene).unwrap());
     }
   });
 

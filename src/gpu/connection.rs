@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+#[cfg(not(target_arch = "wasm32"))]
 use image::{EncodableLayout, GenericImageView};
 
 use crate::ray_tracer::{Scene, Vec3};
@@ -136,10 +137,23 @@ impl Connection {
   }
 
   fn load_image(file_name: &str) -> ((u32, u32), Vec<u8>) {
-    let reader = image::io::Reader::open(file_name).unwrap();
-    let im = reader.decode().unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+      let reader = image::io::Reader::open(file_name).unwrap();
+      let im = reader.decode().unwrap();
 
-    (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
+      (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+      match file_name {
+        "./assets/table_mountain_1_2k.exr" => (
+          (2048, 1024),
+          include_bytes!("../../assets/table_mountain_1_2k.exr").to_vec(),
+        ),
+        _ => panic!("Unknown image file name: {}", file_name),
+      }
+    }
   }
 
   async fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> (wgpu::TextureView, wgpu::Sampler) {
@@ -150,6 +164,8 @@ impl Connection {
     };
 
     let (size, hdri_bytes) = Connection::load_image(hdri_file);
+
+    crate::utils::log!("{} {} {}", size.0, size.1, hdri_bytes.len());
 
     let texture_size = wgpu::Extent3d {
       width: size.0,

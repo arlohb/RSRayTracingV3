@@ -250,7 +250,7 @@ impl App {
     let output_frame = match self.surface.get_current_texture() {
       Ok(frame) => frame,
       Err(e) => {
-        eprintln!("Dropped frame with error: {}", e);
+        crate::utils::log!("Dropped frame with error: {}", e);
         return;
       }
     };
