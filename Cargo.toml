@@ -20,7 +20,7 @@ inline-spirv = "0.1.4" # 16 kB
 pollster = "0.2.5" # 8.82 kB
 num_cpus = "1.13.1" # 14.8 kB
 winit = "0.26.1" # 334 kB
-image = { version = "0.24.1", default-features = false, features = ["exr"] } # 264 kB
+image = { version = "0.24.1", default-features = false, features = ["openexr"] } # 264 kB
 uuid = { version = "1.0.0", features = ["v4"] } # 48.6 kB
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
