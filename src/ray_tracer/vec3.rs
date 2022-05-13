@@ -1,11 +1,10 @@
 use std::ops;
-use serde::{Deserialize, Serialize};
 
 use super::Mat44;
 use crate::utils::bytes::*;
 
 /// Represents a point, vector, or normal in 3D space.
-#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vec3 {
   pub x: f32,
   pub y: f32,

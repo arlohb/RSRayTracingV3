@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
 use super::*;
 
 /// Stores information about the camera in a scene.
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Camera {
   /// The position of the camera.
   pub position: Vec3,

@@ -1,11 +1,10 @@
 use rand::{Rng,SeedableRng};
 use rand_distr::Distribution;
-use serde::{Deserialize, Serialize};
 use super::*;
 use crate::utils::bytes::*;
 
 /// Stores all the information about a scene
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone)]
 pub struct Scene {
   pub camera: Camera,
   pub objects: Vec<Object>,

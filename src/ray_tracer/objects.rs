@@ -1,10 +1,9 @@
-use serde::{Deserialize, Serialize};
 use super::Vec3;
 
 use crate::utils::bytes::*;
 
 /// These parameters influence how light interacts with the object.
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Material {
   /// The albedo colour.
   /// RGB from 0..1.
@@ -44,7 +43,7 @@ impl Material {
 /// Different types are:
 /// - Sphere
 /// - Plane
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Geometry {
   /// A sphere.
   Sphere {
@@ -105,7 +104,7 @@ impl Geometry {
 }
 
 /// Stores all the information about an object.
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Object {
   /// The id of the object.
   /// Has to be unique.
@@ -147,7 +146,7 @@ impl Object {
 /// The different types are:
 /// - Direction
 /// - Point
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Light {
   Direction { intensity: (f32, f32, f32), direction: Vec3},
   Point { intensity: (f32, f32, f32), position: Vec3},
