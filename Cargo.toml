@@ -3,10 +3,18 @@ name = "rs_ray_tracing_v3"
 version = "0.1.0"
 authors = ["Arlo Blythe"]
 edition = "2021"
-rust-version = "1.60"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+# The window just doesn't open with opt-level = 0
+# No clue why
+
+[profile.dev]
+opt-level = 2
+
+[profile.release]
+opt-level = 2
 
 [dependencies]
 egui_wgpu_backend = "0.17"
@@ -157,9 +165,3 @@ web-sys = { version = "0.3.57", features = [
   "OffscreenCanvas",
   "Window",
 ]}
-
-[profile.dev]
-opt-level = 0
-
-[profile.release]
-opt-level = 2
