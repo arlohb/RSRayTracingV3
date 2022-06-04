@@ -28,7 +28,6 @@ impl Ui {
   pub fn update(
     &mut self,
     ctx: &egui::Context,
-    _: &epi::Frame,
     render_target: &mut crate::gpu::RenderTarget,
     device: &wgpu::Device,
   ) {

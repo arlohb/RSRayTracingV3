@@ -35,7 +35,7 @@ pub fn main() {
   let initial_window_size = (1920u32, 1080u32);
   let initial_render_size = (1000u32, 900u32);
 
-  let event_loop = winit::event_loop::EventLoop::with_user_event();
+  let event_loop = winit::event_loop::EventLoop::new();
 
   let window = winit::window::WindowBuilder::new()
     .with_decorations(true)

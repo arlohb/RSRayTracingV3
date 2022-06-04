@@ -44,7 +44,7 @@ impl RenderTarget {
   pub fn update(
     &mut self,
     device: &wgpu::Device,
-    egui_rpass: &mut egui_wgpu_backend::RenderPass,
+    egui_rpass: &mut egui_latest_wgpu_backend::RenderPass,
   ) {
     match self.id {
       Some(id) => {

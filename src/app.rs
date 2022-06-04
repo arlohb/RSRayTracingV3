@@ -2,7 +2,7 @@ use std::{
   iter,
   sync::{Arc, Mutex},
 };
-use egui_wgpu_backend::{
+use egui_latest_wgpu_backend::{
   RenderPass,
   ScreenDescriptor,
 };
@@ -13,24 +13,6 @@ use winit::{
 
 use crate::ray_tracer::Scene;
 use crate::gpu::{Connection, RenderTarget};
-
-/// A custom event type for the winit app.
-pub enum Event {
-  RequestRedraw,
-}
-
-/// This is the repaint signal type that egui needs for requesting a repaint from another thread.
-/// It sends the custom RequestRedraw event to the winit event loop.
-pub struct RepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<Event>>);
-
-unsafe impl Send for RepaintSignal {}
-unsafe impl Sync for RepaintSignal {}
-
-impl epi::backend::RepaintSignal for RepaintSignal {
-  fn request_repaint(&self) {
-    self.0.lock().unwrap().send_event(Event::RequestRedraw).ok();
-  }
-}
 
 pub struct App {
   surface: wgpu::Surface,
@@ -49,7 +31,6 @@ pub struct App {
   egui_winit_state: egui_winit::State,
   egui_context: egui::Context,
   egui_rpass: RenderPass,
-  epi_repaint_signal: Arc<RepaintSignal>,
 
   previous_frame_time: Option<f32>,
 }
@@ -57,7 +38,6 @@ pub struct App {
 impl App {
   pub async fn new(
     window: &winit::window::Window,
-    epi_repaint_signal: Arc<RepaintSignal>,
     scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::utils::history::History>>,
     initial_render_size: (u32, u32),
@@ -187,7 +167,6 @@ impl App {
       egui_winit_state,
       egui_context,
       egui_rpass,
-      epi_repaint_signal,
 
       previous_frame_time: None,
     }
@@ -262,23 +241,9 @@ impl App {
     let egui_start = crate::utils::time::now_millis();
     let input = self.egui_winit_state.take_egui_input(window);
     self.egui_context.begin_frame(input);
-    let app_output = epi::backend::AppOutput::default();
-
-    let frame =  epi::Frame::new(epi::backend::FrameData {
-      info: epi::IntegrationInfo {
-        name: "ray_tracer",
-        web_info: None,
-        cpu_usage: self.previous_frame_time,
-        native_pixels_per_point: Some(window.scale_factor() as _),
-        prefer_dark_mode: None,
-      },
-      output: app_output,
-      repaint_signal: self.epi_repaint_signal.clone(),
-    });
 
     self.ui.update(
       &self.egui_context,
-      &frame,
       &mut self.render_target,
       &self.device,
     );
@@ -326,7 +291,7 @@ impl App {
 }
 
 pub async fn run(
-  event_loop: winit::event_loop::EventLoop<Event>,
+  event_loop: winit::event_loop::EventLoop<()>,
   window: winit::window::Window,
   scene: Arc<Mutex<Scene>>,
   frame_times: Arc<Mutex<crate::utils::history::History>>,
@@ -337,9 +302,6 @@ pub async fn run(
 
   let mut app = App::new(
     &window,
-    Arc::new(RepaintSignal(std::sync::Mutex::new(
-      event_loop.create_proxy(),
-    ))),
     scene.clone(),
     frame_times.clone(),
     initial_render_size,
@@ -359,7 +321,7 @@ pub async fn run(
           app.render(&window);
         }
       }
-      MainEventsCleared | UserEvent(Event::RequestRedraw) => {
+      MainEventsCleared => {
         window.request_redraw();
       }
       WindowEvent { event, .. } => match event {
