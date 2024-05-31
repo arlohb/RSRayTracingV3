@@ -1,27 +1,13 @@
 static float rng_seed = 42.;
 static float2 rng_pixel = float2(0., 0.);
 
-// https://stackoverflow.com/questions/5149544/can-i-generate-a-random-number-inside-a-pixel-shader
-// I extended this a bit
-float random_seed() {
-  float2 p = rng_pixel + rng_seed;
-
-  float2 K1 = float2(
-    23.14069263277926, // e^pi (Gelfond's constant)
-    2.665144142690225 // 2^sqrt(2) (Gelfondâ€“Schneider constant)
-  );
-  return rng_seed + frac( cos( dot(p, K1) ) * 12345.6789 ) * 1000.;
-}
-
 float random() {
-  float2 p = rng_pixel + rng_seed;
-  rng_seed = random_seed();
+  float2 coord = (rng_pixel + rng_seed) % 1.0;
 
-  float2 K1 = float2(
-    23.14069263277926, // e^pi (Gelfond's constant)
-    2.665144142690225 // 2^sqrt(2) (Gelfondâ€“Schneider constant)
-  );
-  return frac( cos( dot(p, K1) ) * 12345.6789 );
+  int size = config.width * config.height;
+  rng_seed += t_random.SampleLevel(s_tex, coord, 0).x * 532.3412;
+  rng_seed %= size;
+  return t_random.SampleLevel(s_tex, coord, 0).x;
 }
 
 float3x3 get_tangent_space(float3 normal) {
@@ -58,6 +44,4 @@ float3 random_in_hemisphere(float3 normal, float roughness) {
 
 void random_init(float2 pixel) {
   rng_pixel = pixel;
-  rng_seed = frame_data.jitter.x + frame_data.jitter.y;
-  rng_seed = random_seed();
 }

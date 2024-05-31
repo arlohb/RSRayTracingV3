@@ -101,8 +101,14 @@ impl App {
         let (previous_render_texture, previous_render_view) =
             RenderTarget::create_render_texture(&device, render_target.size);
 
-        let connection =
-            Connection::new(scene.clone(), &device, &queue, &previous_render_view).await;
+        let connection = Connection::new(
+            scene.clone(),
+            &device,
+            &queue,
+            &previous_render_view,
+            initial_render_size,
+        )
+        .await;
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,

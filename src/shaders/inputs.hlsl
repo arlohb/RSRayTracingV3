@@ -69,7 +69,8 @@ ConstantBuffer<Config> config : register(b2);
 SamplerState s_tex : register(b3);
 Texture2D<float4> t_hdri : register(b4);
 Texture2D<float4> t_render : register(b5);
-ConstantBuffer<FrameData> frame_data : register(b6);
+Texture2D<float4> t_random : register(b6);
+ConstantBuffer<FrameData> frame_data : register(b7);
 
 static uint object_count;
 

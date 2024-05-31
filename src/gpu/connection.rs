@@ -1,5 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use image::{EncodableLayout, GenericImageView};
+use rand::Rng;
 use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::{Scene, Vec3};
@@ -43,6 +44,9 @@ pub struct Connection {
     pub lights: wgpu::Buffer,
     pub config: wgpu::Buffer,
     pub frame_data_buffer: wgpu::Buffer,
+
+    pub random_texture: wgpu::Texture,
+    pub random_texture_size: wgpu::Extent3d,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -138,6 +142,16 @@ impl Connection {
                 wgpu::BindGroupLayoutEntry {
                     binding: 6,
                     visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -169,10 +183,19 @@ impl Connection {
         }
     }
 
-    async fn load_hdri(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> (wgpu::TextureView, wgpu::Sampler) {
+    fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
+        device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        })
+    }
+
+    fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::TextureView {
         let hdri_file = if cfg!(target_arch = "wasm32") {
             "./assets/table_mountain_1_2k.exr"
         } else {
@@ -213,18 +236,57 @@ impl Connection {
             texture_size,
         );
 
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
+        texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    fn create_random_texture(
+        device: &wgpu::Device,
+        size: (u32, u32),
+    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::Extent3d) {
+        let texture_size = wgpu::Extent3d {
+            width: size.0,
+            height: size.1,
+            depth_or_array_layers: 1,
+        };
+
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("random_texture"),
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         });
 
-        (texture_view, sampler)
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        (texture, texture_view, texture_size)
+    }
+
+    fn write_random_texture(&self, queue: &wgpu::Queue, size: (u32, u32)) {
+        let length: usize = (size.0 * size.1) as usize;
+        let mut data = vec![0f32; length];
+
+        let mut rng = rand::thread_rng();
+
+        data.iter_mut().for_each(|v| *v = rng.gen());
+
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.random_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            data.as_bytes(),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: std::num::NonZeroU32::new(4 * size.0),
+                rows_per_image: std::num::NonZeroU32::new(size.1),
+            },
+            self.random_texture_size,
+        );
     }
 
     fn create_buffers(device: &wgpu::Device) -> [wgpu::Buffer; 4] {
@@ -320,8 +382,12 @@ impl Connection {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         render_view: &wgpu::TextureView,
+        size: (u32, u32),
     ) -> Self {
-        let (hdri_texture_view, hdri_sampler) = Connection::load_hdri(device, queue).await;
+        let sampler = Connection::create_sampler(device);
+        let hdri_texture_view = Connection::load_hdri(device, queue);
+        let (random_texture, random_texture_view, random_texture_size) =
+            Connection::create_random_texture(device, size);
 
         let [objects, lights, config, frame_data_buffer] = Connection::create_buffers(device);
 
@@ -345,7 +411,7 @@ impl Connection {
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&hdri_sampler),
+                    resource: wgpu::BindingResource::Sampler(&sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
@@ -357,6 +423,10 @@ impl Connection {
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
+                    resource: wgpu::BindingResource::TextureView(&random_texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
                     resource: frame_data_buffer.as_entire_binding(),
                 },
             ],
@@ -377,6 +447,9 @@ impl Connection {
             lights,
             config,
             frame_data_buffer,
+
+            random_texture,
+            random_texture_size,
 
             vertex_buffer,
             index_buffer,
@@ -400,6 +473,8 @@ impl Connection {
         } else {
             self.frame_data.progressive_count += 1;
         }
+
+        self.write_random_texture(queue, size);
 
         self.frame_data.jitter = (
             rand::random::<f32>() * FrameData::JITTER_STRENGTH - FrameData::JITTER_STRENGTH / 2.,

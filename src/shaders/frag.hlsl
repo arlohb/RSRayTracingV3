@@ -48,12 +48,11 @@ float3 trace_ray_with_reflections(Ray rayin) {
 float4 fs_main(float4 position : SV_POSITION) : SV_TARGET {
   inputs_init();
 
-  float2 pixel = position.xy;
-  float2 pixelJittered = position.xy + frame_data.jitter;
-  float2 coord = pixel / float2(config.width, config.height);
-  float2 coordJittered = pixelJittered / float2(config.width, config.height);
+  float2 positionJittered = position.xy + frame_data.jitter;
+  float2 coord = position.xy / float2(config.width, config.height);
+  float2 coordJittered = positionJittered / float2(config.width, config.height);
 
-  random_init(pixelJittered);
+  random_init(coordJittered);
 
   Ray ray = create_ray(coordJittered);
   float3 colour = trace_ray_with_reflections(ray);
