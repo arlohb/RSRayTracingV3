@@ -48,13 +48,14 @@ float3 trace_ray_with_reflections(Ray rayin) {
 float4 fs_main(float4 position : SV_POSITION) : SV_TARGET {
   inputs_init();
 
-  float2 pixel = position.xy + frame_data.jitter;
-
-  random_init(pixel);
-
+  float2 pixel = position.xy;
+  float2 pixelJittered = position.xy + frame_data.jitter;
   float2 coord = pixel / float2(config.width, config.height);
+  float2 coordJittered = pixelJittered / float2(config.width, config.height);
 
-  Ray ray = create_ray(coord);
+  random_init(pixelJittered);
+
+  Ray ray = create_ray(coordJittered);
   float3 colour = trace_ray_with_reflections(ray);
 
   float3 previous = t_render.Sample(s_tex, coord);
