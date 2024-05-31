@@ -9,7 +9,7 @@
       let
         pkgs = nixpkgs.legacyPackages."${system}";
 
-        name = "name";
+        name = "rs_ray_tracing_v3";
         version = "0.0.1";
         deps = with pkgs; [
           xorg.libX11
@@ -27,6 +27,8 @@
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
           nativeBuildInputs = deps;
+
+          env.SHADERC_LIB_DIR = "${pkgs.shaderc.lib}/lib";
         };
       in {
         devShells.default = pkgs.mkShell {
