@@ -220,9 +220,9 @@ impl Scene {
         width: u32,
         height: u32,
     ) -> (
-        [u8; Scene::BUFFER_SIZE.0 as usize],
-        [u8; Scene::BUFFER_SIZE.1 as usize],
-        [u8; Scene::BUFFER_SIZE.2 as usize],
+        [u8; Scene::BUFFER_SIZE.0],
+        [u8; Scene::BUFFER_SIZE.1],
+        [u8; Scene::BUFFER_SIZE.2],
     ) {
         let vectors = self.camera.get_vectors_fru();
 

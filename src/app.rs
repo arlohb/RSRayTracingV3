@@ -78,8 +78,8 @@ impl App {
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width as u32,
-            height: size.height as u32,
+            width: size.width,
+            height: size.height,
             present_mode: wgpu::PresentMode::Mailbox,
         };
         surface.configure(&device, &surface_config);
