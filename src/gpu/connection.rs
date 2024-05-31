@@ -181,8 +181,6 @@ impl Connection {
 
         let (size, hdri_bytes) = Connection::load_image(hdri_file);
 
-        crate::utils::log!("{} {} {}", size.0, size.1, hdri_bytes.len());
-
         let texture_size = wgpu::Extent3d {
             width: size.0,
             height: size.1,
