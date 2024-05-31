@@ -134,7 +134,7 @@ impl Scene {
                             0.
                         },
                         metallic: rng.gen(),
-                        roughness: if rng.gen::<f32>() < 0.1 {
+                        roughness: if rng.gen::<f32>() < 0.2 {
                             0.
                         } else {
                             rng.gen()
