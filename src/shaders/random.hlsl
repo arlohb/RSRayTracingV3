@@ -6,7 +6,7 @@ float random() {
 
   int size = config.width * config.height;
   rng_seed += t_random.SampleLevel(s_tex, coord, 0).x * 532.3412;
-  rng_seed %= size;
+  rng_seed %= 600;
   return t_random.SampleLevel(s_tex, coord, 0).x;
 }
 

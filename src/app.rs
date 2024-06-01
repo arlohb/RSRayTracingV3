@@ -100,13 +100,7 @@ impl App {
         let (previous_render_texture, previous_render_view) =
             RenderTarget::create_render_texture(&device, render_target.size);
 
-        let connection = Connection::new(
-            &scene,
-            &device,
-            &queue,
-            &previous_render_view,
-            initial_render_size,
-        );
+        let connection = Connection::new(&scene, &device, &queue, &previous_render_view);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[&connection.bind_group_layout],
@@ -166,6 +160,8 @@ impl App {
     }
 
     pub fn render(&mut self, window: &egui_winit::winit::window::Window) {
+        puffin::profile_function!();
+
         /* #region Render the scene */
 
         self.connection
@@ -327,6 +323,8 @@ pub fn run(
             match event {
                 WindowEvent { event, .. } => match event {
                     egui_winit::winit::event::WindowEvent::RedrawRequested => {
+                        puffin::GlobalProfiler::lock().new_frame();
+
                         let now = crate::utils::time::now_millis();
                         let elapsed = now - last_time;
                         if elapsed > 1000. / fps_limit {

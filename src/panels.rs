@@ -42,6 +42,8 @@ fn data_row(
 }
 
 pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
+    puffin::profile_function!();
+
     ui.horizontal(|ui| {
         if ui.add(egui::Button::new("➕ sphere")).clicked() {
             scene.objects.push(Object::default_sphere());
@@ -149,7 +151,16 @@ pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
 }
 
 pub fn settings_panel(ui: &mut egui::Ui, frame_times: &History, scene: &mut Scene) {
+    puffin::profile_function!();
+
     ui.heading("Fps");
+
+    let mut profiling = puffin::are_scopes_on();
+    let profiling_old = profiling;
+    ui.checkbox(&mut profiling, "Puffin profiling");
+    if profiling != profiling_old {
+        puffin::set_scopes_on(profiling);
+    }
 
     let fps = 1000. / frame_times.average(None);
     let recent_fps = 1000. / frame_times.average(Some(1000.));

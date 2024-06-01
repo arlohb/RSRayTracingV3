@@ -60,6 +60,7 @@ float4 fs_main(float4 position : SV_POSITION) : SV_TARGET {
   float3 previous = t_render.Sample(s_tex, coord);
   float opacity = 1. / (float)(frame_data.progressive_count + 1);
   float3 mixed = colour * opacity + previous * (1. - opacity);
+  //
 
   return float4(mixed, 1.);
 }

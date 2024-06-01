@@ -224,11 +224,10 @@ impl Connection {
 
     fn create_random_texture(
         device: &wgpu::Device,
-        size: (u32, u32),
     ) -> (wgpu::Texture, wgpu::TextureView, wgpu::Extent3d) {
         let texture_size = wgpu::Extent3d {
-            width: size.0,
-            height: size.1,
+            width: 600,
+            height: 600,
             depth_or_array_layers: 1,
         };
 
@@ -248,13 +247,17 @@ impl Connection {
         (texture, texture_view, texture_size)
     }
 
-    fn write_random_texture(&self, queue: &wgpu::Queue, size: (u32, u32)) {
-        let length: usize = (size.0 * size.1) as usize;
+    fn write_random_texture(&self, queue: &wgpu::Queue) {
+        let wgpu::Extent3d { width, height, .. } = self.random_texture_size;
+        let length = (width * height) as usize;
         let mut data = vec![0f32; length];
 
         let mut rng = rand::thread_rng();
 
-        data.iter_mut().for_each(|v| *v = rng.gen());
+        {
+            puffin::profile_scope!("Generate random texture");
+            data.iter_mut().for_each(|v| *v = rng.gen());
+        }
 
         queue.write_texture(
             wgpu::ImageCopyTexture {
@@ -267,8 +270,8 @@ impl Connection {
             data.as_bytes(),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * size.0),
-                rows_per_image: Some(size.1),
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
             },
             self.random_texture_size,
         );
@@ -369,12 +372,11 @@ impl Connection {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         render_view: &wgpu::TextureView,
-        size: (u32, u32),
     ) -> Self {
         let sampler = Self::create_sampler(device);
         let hdri_texture_view = Self::load_hdri(device, queue);
         let (random_texture, random_texture_view, random_texture_size) =
-            Self::create_random_texture(device, size);
+            Self::create_random_texture(device);
 
         let [objects, lights, config, frame_data_buffer] = Self::create_buffers(device);
 
@@ -443,7 +445,11 @@ impl Connection {
     }
 
     pub fn update_buffers(&mut self, queue: &wgpu::Queue, size: (u32, u32), scene: &Scene) {
+        puffin::profile_function!();
+
         if (scene != &self.last_scene) | (size != self.last_size) {
+            puffin::profile_scope!("Serialize new scene");
+
             let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(size.0, size.1);
 
             queue.write_buffer(&self.objects, 0, object_bytes.as_slice());
@@ -458,7 +464,7 @@ impl Connection {
             self.frame_data.progressive_count += 1;
         }
 
-        self.write_random_texture(queue, size);
+        self.write_random_texture(queue);
 
         self.frame_data.jitter = (
             rand::random::<f32>().mul_add(

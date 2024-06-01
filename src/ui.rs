@@ -30,6 +30,8 @@ impl Ui {
         scene: &mut Scene,
         frame_times: &History,
     ) {
+        puffin::profile_function!();
+
         let now = now_millis();
         // delta_time is in seconds
         let delta_time = (now - self.last_time) as f32 / 1000.;
@@ -64,6 +66,10 @@ impl Ui {
                 // correct for rounding errors
                 *position *= length / position.length();
             });
+        }
+
+        if puffin::are_scopes_on() {
+            puffin_egui::profiler_window(ctx);
         }
 
         egui::SidePanel::right("panel").show(ctx, |ui| {

@@ -43,6 +43,9 @@ use ray_tracer::Scene;
 pub fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
+    #[cfg(debug_assertions)]
+    puffin::set_scopes_on(true);
+
     let frame_times = History::new(5_000.);
     let scene = Scene::random_spheres_default_config();
 
