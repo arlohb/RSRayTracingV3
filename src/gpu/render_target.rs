@@ -6,6 +6,7 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
+    #[must_use]
     pub fn create_render_texture(
         device: &wgpu::Device,
         size: (u32, u32),
@@ -29,16 +30,16 @@ impl RenderTarget {
         };
 
         let render_texture = device.create_texture(&render_descriptor);
-        let render_view = render_texture.create_view(&Default::default());
+        let render_view = render_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         (render_texture, render_view)
     }
 
-    pub fn new(device: &wgpu::Device, initial_size: (u32, u32)) -> RenderTarget {
-        let (render_texture, render_view) =
-            RenderTarget::create_render_texture(device, initial_size);
+    #[must_use]
+    pub fn new(device: &wgpu::Device, initial_size: (u32, u32)) -> Self {
+        let (render_texture, render_view) = Self::create_render_texture(device, initial_size);
 
-        RenderTarget {
+        Self {
             id: None,
             size: initial_size,
             render_texture,
@@ -68,6 +69,6 @@ impl RenderTarget {
 
     pub fn resize(&mut self, device: &wgpu::Device, size: (u32, u32)) {
         self.size = size;
-        (self.render_texture, self.render_view) = RenderTarget::create_render_texture(device, size);
+        (self.render_texture, self.render_view) = Self::create_render_texture(device, size);
     }
 }

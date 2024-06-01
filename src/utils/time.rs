@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 
+#[must_use]
 pub fn now_millis() -> f64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)

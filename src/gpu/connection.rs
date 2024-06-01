@@ -1,6 +1,5 @@
 use image::{EncodableLayout, GenericImageView};
 use rand::Rng;
-use std::sync::{Arc, Mutex};
 
 use crate::ray_tracer::{Scene, Vec3};
 
@@ -11,10 +10,9 @@ pub struct FrameData {
 
 impl FrameData {
     const BUFFER_SIZE: usize = 16;
-    // const JITTER_STRENGTH: f32 = 0.75;
     const JITTER_STRENGTH: f32 = 0.99;
 
-    pub fn new(jitter: (f32, f32)) -> Self {
+    pub const fn new(jitter: (f32, f32)) -> Self {
         Self {
             jitter,
             progressive_count: 0,
@@ -34,7 +32,6 @@ pub struct Connection {
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 
-    pub scene: Arc<Mutex<Scene>>,
     pub last_scene: Scene,
     pub last_size: (u32, u32),
     pub frame_data: FrameData,
@@ -53,7 +50,7 @@ pub struct Connection {
 
 impl Connection {
     pub const VERTICES_NUM: usize = 4;
-    pub const VERTICES: [Vec3; Connection::VERTICES_NUM] = [
+    pub const VERTICES: [Vec3; Self::VERTICES_NUM] = [
         Vec3 {
             x: -1.,
             y: -1.,
@@ -76,7 +73,7 @@ impl Connection {
         },
     ];
     pub const INDICES_NUM: usize = 6;
-    pub const INDICES: [u16; Connection::INDICES_NUM] = [0, 2, 1, 0, 3, 2];
+    pub const INDICES: [u16; Self::INDICES_NUM] = [0, 2, 1, 0, 3, 2];
 
     fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -163,8 +160,11 @@ impl Connection {
     }
 
     fn load_image(file_name: &str) -> ((u32, u32), Vec<u8>) {
-        let reader = image::io::Reader::open(file_name).unwrap();
-        let im = reader.decode().unwrap();
+        let reader = image::io::Reader::open(file_name)
+            .unwrap_or_else(|_| panic!("Can't find image: {file_name}"));
+        let im = reader
+            .decode()
+            .unwrap_or_else(|_| panic!("Image invalid format: {file_name}"));
 
         (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
     }
@@ -184,7 +184,7 @@ impl Connection {
     fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::TextureView {
         let hdri_file = "./assets/table_mountain_1_8k.exr";
 
-        let (size, hdri_bytes) = Connection::load_image(hdri_file);
+        let (size, hdri_bytes) = Self::load_image(hdri_file);
 
         let texture_size = wgpu::Extent3d {
             width: size.0,
@@ -314,7 +314,8 @@ impl Connection {
         [objects, lights, config, frame_data_buffer]
     }
 
-    pub fn vertex_buffer_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+    #[must_use]
+    pub const fn vertex_buffer_layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: 16,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -330,10 +331,10 @@ impl Connection {
         use wgpu::util::DeviceExt;
 
         let vertex_bytes =
-            crate::utils::bytes::bytes_concat_fixed_in_n::<16, { Connection::VERTICES_NUM * 16 }>(
-                Connection::VERTICES
+            crate::utils::bytes::bytes_concat_fixed_in_n::<16, { Self::VERTICES_NUM * 16 }>(
+                Self::VERTICES
                     .iter()
-                    .map(|vec| vec.as_bytes::<16>())
+                    .map(Vec3::as_bytes)
                     .collect::<Vec<_>>()
                     .as_slice(),
             );
@@ -345,8 +346,8 @@ impl Connection {
         });
 
         let index_bytes =
-            crate::utils::bytes::bytes_concat_fixed_in_n::<2, { Connection::INDICES_NUM * 2 }>(
-                Connection::INDICES
+            crate::utils::bytes::bytes_concat_fixed_in_n::<2, { Self::INDICES_NUM * 2 }>(
+                Self::INDICES
                     .iter()
                     .map(|index| index.to_le_bytes())
                     .collect::<Vec<_>>()
@@ -362,21 +363,22 @@ impl Connection {
         (vertex_buffer, index_buffer)
     }
 
-    pub async fn new(
-        scene: Arc<Mutex<Scene>>,
+    #[must_use]
+    pub fn new(
+        scene: &Scene,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         render_view: &wgpu::TextureView,
         size: (u32, u32),
     ) -> Self {
-        let sampler = Connection::create_sampler(device);
-        let hdri_texture_view = Connection::load_hdri(device, queue);
+        let sampler = Self::create_sampler(device);
+        let hdri_texture_view = Self::load_hdri(device, queue);
         let (random_texture, random_texture_view, random_texture_size) =
-            Connection::create_random_texture(device, size);
+            Self::create_random_texture(device, size);
 
-        let [objects, lights, config, frame_data_buffer] = Connection::create_buffers(device);
+        let [objects, lights, config, frame_data_buffer] = Self::create_buffers(device);
 
-        let bind_group_layout = Connection::bind_group_layout(device);
+        let bind_group_layout = Self::bind_group_layout(device);
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
@@ -417,14 +419,13 @@ impl Connection {
             ],
         });
 
-        let (vertex_buffer, index_buffer) = Connection::create_model_buffers(device);
+        let (vertex_buffer, index_buffer) = Self::create_model_buffers(device);
 
-        Connection {
+        Self {
             bind_group,
             bind_group_layout,
 
-            scene: scene.clone(),
-            last_scene: scene.lock().unwrap().clone(),
+            last_scene: scene.clone(),
             last_size: (0, 0),
             frame_data: FrameData::new((0., 0.)),
 
@@ -441,17 +442,15 @@ impl Connection {
         }
     }
 
-    pub fn update_buffers(&mut self, queue: &wgpu::Queue, size: (u32, u32)) {
-        let scene = self.scene.lock().unwrap().clone();
-
-        if (scene != self.last_scene) | (size != self.last_size) {
+    pub fn update_buffers(&mut self, queue: &wgpu::Queue, size: (u32, u32), scene: &Scene) {
+        if (scene != &self.last_scene) | (size != self.last_size) {
             let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(size.0, size.1);
 
             queue.write_buffer(&self.objects, 0, object_bytes.as_slice());
             queue.write_buffer(&self.lights, 0, light_bytes.as_slice());
             queue.write_buffer(&self.config, 0, config_bytes.as_slice());
 
-            self.last_scene = scene;
+            self.last_scene = scene.clone();
             self.last_size = size;
 
             self.frame_data.progressive_count = 0;
@@ -462,8 +461,14 @@ impl Connection {
         self.write_random_texture(queue, size);
 
         self.frame_data.jitter = (
-            rand::random::<f32>() * FrameData::JITTER_STRENGTH - FrameData::JITTER_STRENGTH / 2.,
-            rand::random::<f32>() * FrameData::JITTER_STRENGTH - FrameData::JITTER_STRENGTH / 2.,
+            rand::random::<f32>().mul_add(
+                FrameData::JITTER_STRENGTH,
+                -(FrameData::JITTER_STRENGTH / 2.),
+            ),
+            rand::random::<f32>().mul_add(
+                FrameData::JITTER_STRENGTH,
+                -(FrameData::JITTER_STRENGTH / 2.),
+            ),
         );
 
         queue.write_buffer(

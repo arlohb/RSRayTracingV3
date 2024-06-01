@@ -1,5 +1,33 @@
+#![warn(
+    // TODO: Enable this
+    // missing_docs,
+    clippy::unwrap_used,
+    // TODO: Improve error handling
+    // clippy::expect_used,
+    clippy::pedantic,
+    clippy::nursery,
+    future_incompatible,
+)]
+#![allow(
+    // TODO: Improve error handling
+    clippy::missing_panics_doc,
+    // I understand how rust modules work,
+    // so if I do this its on purpose.
+    clippy::module_inception,
+    // Same as above.
+    clippy::module_name_repetitions,
+    // Rust makes it obvious when this is happening
+    // without this lint.
+    clippy::cast_precision_loss,
+    // Same as above.
+    clippy::cast_possible_truncation,
+    // Same as above.
+    clippy::cast_sign_loss,
+)]
+
 mod ui;
 pub use ui::Ui;
+use utils::history::History;
 
 pub mod app;
 pub mod gpu;
@@ -8,15 +36,15 @@ pub mod panels;
 pub mod ray_tracer;
 pub mod utils;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use ray_tracer::*;
+use ray_tracer::Scene;
 
 pub fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let frame_times = Arc::new(Mutex::new(utils::history::History::new(5_000.)));
-    let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
+    let frame_times = History::new(5_000.);
+    let scene = Scene::random_spheres_default_config();
 
     let fps_limit = 5000.;
     let initial_window_size = (1920u32, 1080u32);
@@ -39,12 +67,12 @@ pub fn main() {
             .expect("Failed to create window"),
     );
 
-    pollster::block_on(crate::app::run(
+    app::run(
         event_loop,
         window,
         scene,
         frame_times,
         fps_limit,
         initial_render_size,
-    ));
+    );
 }

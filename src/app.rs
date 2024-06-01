@@ -1,12 +1,15 @@
 use egui_wgpu::{Renderer, ScreenDescriptor};
-use egui_winit::winit::{event::Event::*, event_loop::ControlFlow};
-use std::{
-    iter,
-    sync::{Arc, Mutex},
+use egui_winit::winit::{
+    event::Event::{AboutToWait, WindowEvent},
+    event_loop::ControlFlow,
 };
+use std::{iter, sync::Arc};
 
-use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
+use crate::{
+    gpu::{Connection, RenderTarget},
+    utils::history::History,
+};
 
 pub struct App {
     surface: wgpu::Surface<'static>,
@@ -14,6 +17,8 @@ pub struct App {
     queue: wgpu::Queue,
 
     ui: crate::ui::Ui,
+    scene: Scene,
+    frame_times: History,
 
     render_pipeline: wgpu::RenderPipeline,
     previous_render_texture: wgpu::Texture,
@@ -32,10 +37,10 @@ pub struct App {
 impl App {
     pub async fn new(
         window: Arc<egui_winit::winit::window::Window>,
-        scene: Arc<Mutex<Scene>>,
-        frame_times: Arc<Mutex<crate::utils::history::History>>,
+        scene: Scene,
+        frame_times: History,
         initial_render_size: (u32, u32),
-    ) -> App {
+    ) -> Self {
         /* #region Initialize the GPU */
 
         let instance = wgpu::Instance::default();
@@ -44,23 +49,15 @@ impl App {
             .expect("Failed to create surface");
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
+                ..Default::default()
             })
             .await
             .expect("Failed to find an appropriate adapter");
 
         // Create the logical device and command queue
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor::default(), None)
             .await
             .expect("Failed to create device");
 
@@ -93,8 +90,7 @@ impl App {
             None,
         );
 
-        let ui = crate::Ui::new(scene.clone(), frame_times);
-
+        let ui = crate::Ui::new();
         let egui_renderer = Renderer::new(&device, surface_format, None, 1);
 
         /* #endregion */
@@ -105,18 +101,16 @@ impl App {
             RenderTarget::create_render_texture(&device, render_target.size);
 
         let connection = Connection::new(
-            scene.clone(),
+            &scene,
             &device,
             &queue,
             &previous_render_view,
             initial_render_size,
-        )
-        .await;
+        );
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
             bind_group_layouts: &[&connection.bind_group_layout],
-            push_constant_ranges: &[],
+            ..Default::default()
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -137,13 +131,8 @@ impl App {
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
+                ..Default::default()
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
@@ -152,12 +141,14 @@ impl App {
 
         /* #endregion */
 
-        App {
+        Self {
             surface,
             device,
             queue,
 
             ui,
+            scene,
+            frame_times,
 
             render_pipeline,
             previous_render_texture,
@@ -178,7 +169,7 @@ impl App {
         /* #region Render the scene */
 
         self.connection
-            .update_buffers(&self.queue, self.render_target.size);
+            .update_buffers(&self.queue, self.render_target.size, &self.scene);
 
         let mut encoder = self
             .device
@@ -189,10 +180,7 @@ impl App {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.render_target.render_view,
                     resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                        store: wgpu::StoreOp::Store,
-                    },
+                    ops: wgpu::Operations::default(),
                 })],
                 ..Default::default()
             });
@@ -230,7 +218,7 @@ impl App {
         let output_frame = match self.surface.get_current_texture() {
             Ok(frame) => frame,
             Err(e) => {
-                println!("Dropped frame with error: {}", e);
+                println!("Dropped frame with error: {e}");
                 return;
             }
         };
@@ -243,8 +231,13 @@ impl App {
         let input = self.egui_winit_state.take_egui_input(window);
         self.egui_context.begin_frame(input);
 
-        self.ui
-            .update(&self.egui_context, &mut self.render_target, &self.device);
+        self.ui.update(
+            &self.egui_context,
+            &mut self.render_target,
+            &self.device,
+            &mut self.scene,
+            &self.frame_times,
+        );
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let output = self.egui_context.end_frame();
@@ -286,10 +279,7 @@ impl App {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_view,
                     resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
+                    ops: wgpu::Operations::default(),
                 })],
                 ..Default::default()
             });
@@ -314,23 +304,22 @@ impl App {
     }
 }
 
-pub async fn run(
+pub fn run(
     event_loop: egui_winit::winit::event_loop::EventLoop<()>,
     window: Arc<egui_winit::winit::window::Window>,
-    scene: Arc<Mutex<Scene>>,
-    frame_times: Arc<Mutex<crate::utils::history::History>>,
+    scene: Scene,
+    frame_times: History,
     fps_limit: f64,
     initial_render_size: (u32, u32),
 ) {
     let mut last_time = crate::utils::time::now_millis();
 
-    let mut app = App::new(
+    let mut app = pollster::block_on(App::new(
         window.clone(),
-        scene.clone(),
-        frame_times.clone(),
+        scene,
+        frame_times,
         initial_render_size,
-    )
-    .await;
+    ));
 
     event_loop
         .run(move |event, window_target| {
@@ -342,9 +331,7 @@ pub async fn run(
                         let elapsed = now - last_time;
                         if elapsed > 1000. / fps_limit {
                             last_time = now;
-                            if let Ok(mut frame_times) = frame_times.try_lock() {
-                                frame_times.add(elapsed);
-                            }
+                            app.frame_times.add(elapsed);
                             app.render(&window);
                         }
                     }

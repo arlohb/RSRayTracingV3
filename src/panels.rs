@@ -1,6 +1,8 @@
-use crate::ray_tracer::*;
+use crate::{
+    ray_tracer::{Geometry, Object, Scene, Vec3},
+    utils::history::History,
+};
 use egui;
-use std::sync::{Arc, Mutex};
 
 fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
     ui.horizontal(|ui| {
@@ -23,9 +25,9 @@ fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
 }
 
 fn colour_widget(ui: &mut egui::Ui, input: &mut (f32, f32, f32)) {
-    let mut colour = [input.0, input.1, input.2];
+    let mut colour = (*input).into();
     ui.color_edit_button_rgb(&mut colour);
-    *input = (colour[0], colour[1], colour[2]);
+    *input = colour.into();
 }
 
 fn data_row(
@@ -42,49 +44,10 @@ fn data_row(
 pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
     ui.horizontal(|ui| {
         if ui.add(egui::Button::new("➕ sphere")).clicked() {
-            scene.objects.push(Object::new(
-                "sphere",
-                Material {
-                    colour: (1., 0., 0.),
-                    emission: (0., 0., 0.),
-                    emission_strength: 0.,
-                    metallic: 0.5,
-                    roughness: 0.5,
-                },
-                Geometry::Sphere {
-                    center: Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: 0.,
-                    },
-                    radius: 1.,
-                },
-            ));
+            scene.objects.push(Object::default_sphere());
         }
         if ui.add(egui::Button::new("➕ plane")).clicked() {
-            scene.objects.push(Object::new(
-                "plane",
-                Material {
-                    colour: (1., 0., 0.),
-                    emission: (0., 0., 0.),
-                    emission_strength: 0.,
-                    metallic: 0.5,
-                    roughness: 0.5,
-                },
-                Geometry::Plane {
-                    center: Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: 0.,
-                    },
-                    normal: Vec3 {
-                        x: 0.,
-                        y: 1.,
-                        z: 0.,
-                    },
-                    size: 5.,
-                },
-            ));
+            scene.objects.push(Object::default_plane());
         }
     });
 
@@ -185,21 +148,17 @@ pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
         });
 }
 
-pub fn settings_panel(
-    ui: &mut egui::Ui,
-    frame_times: Arc<Mutex<crate::utils::history::History>>,
-    scene: &mut Scene,
-) {
+pub fn settings_panel(ui: &mut egui::Ui, frame_times: &History, scene: &mut Scene) {
     ui.heading("Fps");
 
-    let fps = 1000. / frame_times.lock().unwrap().average(None);
-    let recent_fps = 1000. / frame_times.lock().unwrap().average(Some(1000.));
+    let fps = 1000. / frame_times.average(None);
+    let recent_fps = 1000. / frame_times.average(Some(1000.));
 
     data_row(ui, "5 sec average", |ui| {
-        ui.label(format!("{:.1}", fps));
+        ui.label(format!("{fps:.1}"));
     });
     data_row(ui, "1 sec average", |ui| {
-        ui.label(format!("{:.1}", recent_fps));
+        ui.label(format!("{recent_fps:.1}"));
     });
 
     egui_plot::Plot::new("Fps history")
@@ -212,15 +171,13 @@ pub fn settings_panel(
             ui.line(
                 egui_plot::Line::new(egui_plot::PlotPoints::new(
                     frame_times
-                        .lock()
-                        .unwrap()
                         .values(None)
                         .iter()
                         .map(|frame| [-frame.age(), 1000. / frame.value])
                         .collect::<Vec<_>>(),
                 ))
                 .name("Fps history"),
-            )
+            );
         });
 
     ui.separator();

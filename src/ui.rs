@@ -1,24 +1,25 @@
-use crate::{panels::*, ray_tracer::*, utils::time::now_millis};
-use std::sync::{Arc, Mutex};
+use crate::{
+    panels::{object_panel, settings_panel},
+    ray_tracer::{Axis, Geometry, Mat44, Scene},
+    utils::{history::History, time::now_millis},
+};
 
 pub struct Ui {
-    g_scene: Arc<Mutex<Scene>>,
-    scene: Scene,
     last_time: f64,
-    frame_times: Arc<Mutex<crate::utils::history::History>>,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Self {
+            last_time: now_millis(),
+        }
+    }
 }
 
 impl Ui {
-    pub fn new(
-        g_scene: Arc<Mutex<Scene>>,
-        frame_times: Arc<Mutex<crate::utils::history::History>>,
-    ) -> Self {
-        Self {
-            g_scene: g_scene.clone(),
-            scene: g_scene.lock().unwrap().clone(),
-            last_time: now_millis(),
-            frame_times,
-        }
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn update(
@@ -26,6 +27,8 @@ impl Ui {
         ctx: &egui::Context,
         render_target: &mut crate::gpu::RenderTarget,
         device: &wgpu::Device,
+        scene: &mut Scene,
+        frame_times: &History,
     ) {
         let now = now_millis();
         // delta_time is in seconds
@@ -35,19 +38,19 @@ impl Ui {
         ctx.input(|input_state| {
             crate::movement::move_and_rotate(
                 input_state,
-                &mut self.scene.camera,
+                &mut scene.camera,
                 delta_time * 1.5,
                 delta_time * 20.,
                 6.,
                 0.4,
-            )
+            );
         });
 
-        if self.scene.do_objects_spin {
+        if scene.do_objects_spin {
             let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;
             let rotation = Mat44::create_rotation(Axis::Y, theta);
 
-            self.scene.objects.iter_mut().for_each(|object| {
+            scene.objects.iter_mut().for_each(|object| {
                 if let Geometry::Sphere { .. } = object.geometry {
                 } else {
                     return;
@@ -65,8 +68,8 @@ impl Ui {
 
         egui::SidePanel::right("panel").show(ctx, |ui| {
             ui.columns(2, |cols| {
-                object_panel(&mut cols[0], &mut self.scene);
-                settings_panel(&mut cols[1], self.frame_times.clone(), &mut self.scene);
+                object_panel(&mut cols[0], scene);
+                settings_panel(&mut cols[1], frame_times, scene);
             });
         });
 
@@ -88,12 +91,8 @@ impl Ui {
                                 render_target.size.1 as f32,
                             ),
                         }));
-                    })
+                    });
             });
-        }
-
-        if let Ok(mut scene) = self.g_scene.try_lock() {
-            *scene = self.scene.clone();
         }
     }
 }

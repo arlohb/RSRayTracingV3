@@ -1,6 +1,7 @@
 use std::ops;
 
 /// An enum for a choice of axis, X, Y, Z.
+#[derive(Clone, Copy)]
 pub enum Axis {
     X,
     Y,
@@ -17,26 +18,28 @@ pub struct Mat44 {
 
 impl Mat44 {
     /// Create a new matrix with the given values.
-    pub fn new(data: [[f32; 4]; 4]) -> Mat44 {
-        Mat44 { data }
+    #[must_use]
+    pub const fn new(data: [[f32; 4]; 4]) -> Self {
+        Self { data }
     }
 
     /// Create a matrix representing a rotation around an axis.
-    pub fn create_rotation(axis: Axis, radians: f32) -> Mat44 {
+    #[must_use]
+    pub fn create_rotation(axis: Axis, radians: f32) -> Self {
         match axis {
-            Axis::X => Mat44::new([
+            Axis::X => Self::new([
                 [1., 0., 0., 0.],
                 [0., radians.cos(), radians.sin(), 0.],
                 [0., -radians.sin(), radians.cos(), 0.],
                 [0., 0., 0., 1.],
             ]),
-            Axis::Y => Mat44::new([
+            Axis::Y => Self::new([
                 [radians.cos(), 0., -radians.sin(), 0.],
                 [0., 1., 0., 0.],
                 [radians.sin(), 0., radians.cos(), 0.],
                 [0., 0., 0., 1.],
             ]),
-            Axis::Z => Mat44::new([
+            Axis::Z => Self::new([
                 [radians.cos(), radians.sin(), 0., 0.],
                 [-radians.sin(), radians.cos(), 0., 0.],
                 [0., 0., 1., 0.],

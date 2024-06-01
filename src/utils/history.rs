@@ -8,10 +8,12 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(time: f64, value: f64) -> Self {
+    #[must_use]
+    pub const fn new(time: f64, value: f64) -> Self {
         Self { time, value }
     }
 
+    #[must_use]
     pub fn age(&self) -> f64 {
         now_millis() - self.time
     }
@@ -23,8 +25,9 @@ pub struct History {
 }
 
 impl History {
-    pub fn new(max_age: f64) -> History {
-        History {
+    #[must_use]
+    pub const fn new(max_age: f64) -> Self {
+        Self {
             max_age,
             values: VecDeque::new(),
         }
@@ -47,6 +50,7 @@ impl History {
         self.flush();
     }
 
+    #[must_use]
     pub fn values(&self, max_age: Option<f64>) -> Vec<Frame> {
         let max_age = max_age.unwrap_or(self.max_age);
         self.values
@@ -56,10 +60,12 @@ impl History {
             .collect()
     }
 
+    #[must_use]
     pub fn sum(&self, max_age: Option<f64>) -> f64 {
         self.values(max_age).iter().map(|frame| frame.value).sum()
     }
 
+    #[must_use]
     pub fn average(&self, max_age: Option<f64>) -> f64 {
         self.sum(max_age) / self.values(max_age).len().max(1) as f64
     }

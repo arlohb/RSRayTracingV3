@@ -1,4 +1,4 @@
-use super::*;
+use super::{Axis, Mat44, Vec3};
 
 /// Stores information about the camera in a scene.
 #[derive(Clone, PartialEq)]
@@ -23,8 +23,8 @@ impl Camera {
     pub fn clamp_rotation(&mut self) {
         // x should be clamped between -pi/2 and pi/2
         self.rotation.x = self.rotation.x.clamp(
-            -0.5 * std::f32::consts::PI + 0.01,
-            0.5 * std::f32::consts::PI - 0.01,
+            (-0.5f32).mul_add(std::f32::consts::PI, 0.01),
+            0.5f32.mul_add(std::f32::consts::PI, -0.01),
         );
 
         // y should be wrapped around to between -pi and pi
@@ -47,6 +47,7 @@ impl Camera {
     /// This is done together as each one depends on the one before it, so this saves calculations.
     ///
     /// The 'fru' stands for forward, right, up as every time its used I need a reminder what order they are in.
+    #[must_use]
     pub fn get_vectors_fru(&self) -> (Vec3, Vec3, Vec3) {
         let forward = Vec3 {
             x: 0.,

@@ -1,5 +1,5 @@
-use super::*;
-use crate::utils::bytes::*;
+use super::{Camera, Geometry, Light, Material, Object, Vec3};
+use crate::utils::bytes::{bytes_concat_fixed_in_n, bytes_concat_n, tuple_bytes};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -20,8 +20,9 @@ impl Scene {
         (Object::BUFFER_SIZE * 80, Light::BUFFER_SIZE * 2, 112);
 
     /// Returns a simple scene with a single sphere and light
-    pub fn simple() -> Scene {
-        Scene {
+    #[must_use]
+    pub fn simple() -> Self {
+        Self {
             objects: vec![Object::new(
                 "Sphere",
                 Material {
@@ -71,8 +72,9 @@ impl Scene {
     /// Randomly fills a scene with spheres using default parameters.
     ///
     /// This will be more / less intensive depending on how many CPU cores are available.
-    pub fn random_sphere_default_config() -> Scene {
-        Scene::random_sphere(
+    #[must_use]
+    pub fn random_spheres_default_config() -> Self {
+        Self::random_spheres(
             3.,
             8.,
             if num_cpus::get() > 2 { 50. } else { 20. },
@@ -81,72 +83,102 @@ impl Scene {
         )
     }
 
+    #[must_use]
+    pub fn random_sphere<R: Rng>(
+        mut rng: &mut R,
+        name: impl Into<String>,
+        min_radius: f32,
+        max_radius: f32,
+        placement_radius: f32,
+        is_valid: impl Fn(&Geometry) -> bool,
+    ) -> Option<Object> {
+        // if it failed 100 times, then there's probably no space left
+        for _ in 0..100 {
+            let radius: f32 = rng
+                .gen::<f32>()
+                .mul_add(max_radius - min_radius, min_radius);
+            let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rng);
+            let x = x * placement_radius;
+            let y = y * placement_radius;
+            let position = Vec3 { x, y: radius, z: y };
+
+            let geometry = Geometry::Sphere {
+                center: position,
+                radius,
+            };
+
+            if is_valid(&geometry) {
+                let material = Material {
+                    colour: (rng.gen(), rng.gen(), rng.gen()),
+                    emission: [
+                        (1., 1., 1.),
+                        (1., 0., 0.),
+                        (1., 1., 0.),
+                        (0., 1., 0.),
+                        (0., 1., 1.),
+                        (0., 0., 1.),
+                        (1., 0., 1.),
+                    ][rng.gen_range(0..7)],
+                    emission_strength: if rng.gen::<f32>() > 0.85 {
+                        rng.gen_range(5.0..=15.)
+                    } else {
+                        0.
+                    },
+                    metallic: rng.gen(),
+                    roughness: if rng.gen::<f32>() < 0.2 {
+                        0.
+                    } else {
+                        rng.gen()
+                    },
+                };
+
+                return Some(Object::new(name, material, geometry));
+            }
+        }
+
+        None
+    }
+
     /// Randomly fills a scene with spheres using the given parameters.
-    pub fn random_sphere(
+    #[must_use]
+    pub fn random_spheres(
         min_radius: f32,
         max_radius: f32,
         placement_radius: f32,
         sphere_count: u32,
         seed: Option<u64>,
-    ) -> Scene {
+    ) -> Self {
         let seed = seed.unwrap_or_else(rand::random::<u64>);
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 
         let mut objects: Vec<Object> = vec![];
 
         for i in 0u32..sphere_count {
-            // if it failed 100 times, then there's probably no space left
-            for _ in 0..100 {
-                let radius: f32 = rng.gen::<f32>() * (max_radius - min_radius) + min_radius;
-                let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rng);
-                let x = x * placement_radius;
-                let y = y * placement_radius;
-                let position = Vec3 { x, y: radius, z: y };
-
-                // reject spheres that are intersecting others
-                if objects.iter().any(|object| {
-                    let other_radius = match object.geometry {
-                        Geometry::Sphere { radius, .. } => radius,
-                        _ => return false,
-                    };
-                    let min_dst = radius + other_radius;
-                    (*object.geometry.position() - position).length() < min_dst
-                }) {
-                    continue;
-                }
-
-                objects.push(Object::new(
-                    format!("Sphere {}", i),
-                    Material {
-                        colour: (rng.gen(), rng.gen(), rng.gen()),
-                        emission: [
-                            (1., 1., 1.),
-                            (1., 0., 0.),
-                            (1., 1., 0.),
-                            (0., 1., 0.),
-                            (0., 1., 1.),
-                            (0., 0., 1.),
-                            (1., 0., 1.),
-                        ][rng.gen_range(0..7)],
-                        emission_strength: if rng.gen::<f32>() > 0.85 {
-                            rng.gen_range(5.0..=15.)
-                        } else {
-                            0.
-                        },
-                        metallic: rng.gen(),
-                        roughness: if rng.gen::<f32>() < 0.2 {
-                            0.
-                        } else {
-                            rng.gen()
-                        },
-                    },
-                    Geometry::Sphere {
-                        center: position,
-                        radius,
-                    },
-                ));
-
-                break;
+            if let Some(object) = Self::random_sphere(
+                &mut rng,
+                format!("Sphere {i}"),
+                min_radius,
+                max_radius,
+                placement_radius,
+                |geometry| {
+                    if let &Geometry::Sphere { center, radius } = geometry {
+                        !objects.iter().any(|object| {
+                            let Geometry::Sphere {
+                                radius: other_radius,
+                                ..
+                            } = object.geometry
+                            else {
+                                return false;
+                            };
+                            let min_dst = radius + other_radius;
+                            (*object.geometry.position() - center).length() < min_dst
+                        })
+                    } else {
+                        false
+                    }
+                },
+            ) {
+                objects.push(object);
             }
         }
 
@@ -170,11 +202,11 @@ impl Scene {
                     y: 1.,
                     z: 0.,
                 },
-                size: 100000.,
+                size: 100_000.,
             },
         ));
 
-        Scene {
+        Self {
             camera: Camera {
                 position: Vec3 {
                     x: 55.,
@@ -215,14 +247,15 @@ impl Scene {
         }
     }
 
+    #[must_use]
     pub fn as_bytes(
         &self,
         width: u32,
         height: u32,
     ) -> (
-        [u8; Scene::BUFFER_SIZE.0],
-        [u8; Scene::BUFFER_SIZE.1],
-        [u8; Scene::BUFFER_SIZE.2],
+        [u8; Self::BUFFER_SIZE.0],
+        [u8; Self::BUFFER_SIZE.1],
+        [u8; Self::BUFFER_SIZE.2],
     ) {
         let vectors = self.camera.get_vectors_fru();
 
@@ -230,14 +263,14 @@ impl Scene {
             bytes_concat_fixed_in_n(
                 self.objects
                     .iter()
-                    .map(|object| object.as_bytes())
+                    .map(Object::as_bytes)
                     .collect::<Vec<_>>()
                     .as_slice(),
             ),
             bytes_concat_fixed_in_n(
                 self.lights
                     .iter()
-                    .map(|light| light.as_bytes())
+                    .map(Light::as_bytes)
                     .collect::<Vec<_>>()
                     .as_slice(),
             ),
@@ -258,12 +291,10 @@ impl Scene {
 }
 
 impl PartialEq for Scene {
-    fn eq(&self, other: &Scene) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         (self.camera == other.camera)
-            & {
-                if self.objects.len() != other.objects.len() {
-                    false
-                } else {
+            && {
+                if self.objects.len() == other.objects.len() {
                     for (i, object) in self.objects.iter().enumerate() {
                         if *object != other.objects[i] {
                             return false;
@@ -271,12 +302,12 @@ impl PartialEq for Scene {
                     }
 
                     true
+                } else {
+                    false
                 }
             }
-            & {
-                if self.lights.len() != other.lights.len() {
-                    false
-                } else {
+            && {
+                if self.lights.len() == other.lights.len() {
                     for (i, light) in self.lights.iter().enumerate() {
                         if *light != other.lights[i] {
                             return false;
@@ -284,11 +315,13 @@ impl PartialEq for Scene {
                     }
 
                     true
+                } else {
+                    false
                 }
             }
-            & (self.background_colour == other.background_colour)
-            & (self.ambient_light == other.ambient_light)
-            & (self.reflection_limit == other.reflection_limit)
-            & (self.do_objects_spin == other.do_objects_spin)
+            && (self.background_colour == other.background_colour)
+            && (self.ambient_light == other.ambient_light)
+            && (self.reflection_limit == other.reflection_limit)
+            && (self.do_objects_spin == other.do_objects_spin)
     }
 }

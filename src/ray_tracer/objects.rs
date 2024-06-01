@@ -1,6 +1,6 @@
 use super::Vec3;
 
-use crate::utils::bytes::*;
+use crate::utils::bytes::{bytes_concat_n, tuple_bytes};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]
@@ -21,11 +21,24 @@ pub struct Material {
     pub roughness: f32,
 }
 
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            colour: (1., 0., 0.),
+            emission: (0., 0., 0.),
+            emission_strength: 0.,
+            metallic: 0.5,
+            roughness: 0.5,
+        }
+    }
+}
+
 impl Material {
     pub const BUFFER_SIZE: usize = 48;
 
     /// Get the byte representation of the object.
-    pub fn as_bytes(&self) -> [u8; Material::BUFFER_SIZE] {
+    #[must_use]
+    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         bytes_concat_n(&[
             &tuple_bytes::<16>(self.colour),
             &tuple_bytes::<12>(self.emission),
@@ -66,17 +79,35 @@ pub enum Geometry {
 impl Geometry {
     pub const BUFFER_SIZE: usize = 64;
 
+    #[must_use]
+    pub const fn default_sphere() -> Self {
+        Self::Sphere {
+            center: Vec3::new(0., 0., 0.),
+            radius: 1.,
+        }
+    }
+
+    #[must_use]
+    pub const fn default_plane() -> Self {
+        Self::Plane {
+            center: Vec3::new(0., 0., 0.),
+            normal: Vec3::new(0., 1., 0.),
+            size: 1.,
+        }
+    }
+
     /// Get the byte representation of the object.
-    pub fn as_bytes(&self) -> [u8; Geometry::BUFFER_SIZE] {
+    #[must_use]
+    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         match self {
-            Geometry::Sphere { center, radius } => bytes_concat_n(&[
+            Self::Sphere { center, radius } => bytes_concat_n(&[
                 &0u32.to_le_bytes(),
                 &[0u8; 12],
                 &center.as_bytes::<16>(),
                 &[0u8; 12],
                 &radius.to_le_bytes(),
             ]),
-            Geometry::Plane {
+            Self::Plane {
                 center,
                 normal,
                 size,
@@ -91,26 +122,17 @@ impl Geometry {
     }
 
     /// Gets the position of the object to show in the editor.
-    pub fn position(&self) -> &Vec3 {
+    #[must_use]
+    pub const fn position(&self) -> &Vec3 {
         match self {
-            Geometry::Sphere { center, radius: _ } => center,
-            Geometry::Plane {
-                center,
-                normal: _,
-                size: _,
-            } => center,
+            Self::Plane { center, .. } | Self::Sphere { center, .. } => center,
         }
     }
 
     /// Gets the position of the object to show in the editor.
     pub fn position_as_mut(&mut self) -> &mut Vec3 {
         match self {
-            Geometry::Sphere { center, radius: _ } => center,
-            Geometry::Plane {
-                center,
-                normal: _,
-                size: _,
-            } => center,
+            Self::Plane { center, .. } | Self::Sphere { center, .. } => center,
         }
     }
 }
@@ -134,16 +156,27 @@ pub struct Object {
 impl Object {
     pub const BUFFER_SIZE: usize = Material::BUFFER_SIZE + Geometry::BUFFER_SIZE;
 
+    #[must_use]
+    pub fn default_sphere() -> Self {
+        Self::new("sphere", Material::default(), Geometry::default_sphere())
+    }
+
+    #[must_use]
+    pub fn default_plane() -> Self {
+        Self::new("plane", Material::default(), Geometry::default_plane())
+    }
+
     /// Get the byte representation of the object.
-    pub fn as_bytes(&self) -> [u8; Object::BUFFER_SIZE] {
+    #[must_use]
+    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         bytes_concat_n(&[&self.material.as_bytes(), &self.geometry.as_bytes()])
     }
 
     /// Creates a new object.
-    pub fn new(name: impl ToString, material: Material, geometry: Geometry) -> Self {
+    pub fn new(name: impl Into<String>, material: Material, geometry: Geometry) -> Self {
         Self {
             id: uuid::Uuid::new_v4().as_u128(),
-            name: name.to_string(),
+            name: name.into(),
             material,
             geometry,
         }
@@ -171,9 +204,10 @@ impl Light {
     pub const BUFFER_SIZE: usize = 48;
 
     /// Get the byte representation of the object.
-    pub fn as_bytes(&self) -> [u8; Light::BUFFER_SIZE] {
+    #[must_use]
+    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         match self {
-            Light::Direction {
+            Self::Direction {
                 intensity,
                 direction,
             } => bytes_concat_n(&[
@@ -182,7 +216,7 @@ impl Light {
                 &tuple_bytes::<16>(*intensity),
                 &direction.as_bytes::<12>(),
             ]),
-            Light::Point {
+            Self::Point {
                 intensity,
                 position,
             } => bytes_concat_n(&[
