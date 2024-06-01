@@ -32,14 +32,16 @@ impl Ui {
         let delta_time = (now - self.last_time) as f32 / 1000.;
         self.last_time = now;
 
-        crate::movement::move_and_rotate(
-            &ctx.input(),
-            &mut self.scene.camera,
-            delta_time * 1.5,
-            delta_time * 20.,
-            6.,
-            0.4,
-        );
+        ctx.input(|input_state| {
+            crate::movement::move_and_rotate(
+                input_state,
+                &mut self.scene.camera,
+                delta_time * 1.5,
+                delta_time * 20.,
+                6.,
+                0.4,
+            )
+        });
 
         if self.scene.do_objects_spin {
             let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;

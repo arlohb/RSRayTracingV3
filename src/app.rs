@@ -39,13 +39,16 @@ impl App {
     ) -> App {
         /* #region Initialize the GPU */
 
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::default();
+        let surface = unsafe {
+            instance
+                .create_surface(window)
+                .expect("Failed to create surface")
+        };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 force_fallback_adapter: false,
-                // Request an adapter which can render to our surface
                 compatible_surface: Some(&surface),
             })
             .await
@@ -68,10 +71,11 @@ impl App {
         /* #region Initialize the surface */
 
         let size = window.inner_size();
-        let surface_format = surface.get_supported_formats(&adapter)[0];
+        let surface_format = surface.get_capabilities(&adapter).formats[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
+            view_formats: vec![surface_format],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Mailbox,

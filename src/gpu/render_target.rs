@@ -20,6 +20,7 @@ impl RenderTarget {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
             usage: wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
