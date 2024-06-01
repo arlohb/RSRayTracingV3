@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 use image::{EncodableLayout, GenericImageView};
 use rand::Rng;
 use std::sync::{Arc, Mutex};
@@ -164,23 +163,10 @@ impl Connection {
     }
 
     fn load_image(file_name: &str) -> ((u32, u32), Vec<u8>) {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let reader = image::io::Reader::open(file_name).unwrap();
-            let im = reader.decode().unwrap();
+        let reader = image::io::Reader::open(file_name).unwrap();
+        let im = reader.decode().unwrap();
 
-            (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            match file_name {
-                "./assets/table_mountain_1_2k.exr" => (
-                    (2048, 1024),
-                    include_bytes!("../../assets/table_mountain_1_2k.exr").to_vec(),
-                ),
-                _ => panic!("Unknown image file name: {}", file_name),
-            }
-        }
+        (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
     }
 
     fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
@@ -196,11 +182,7 @@ impl Connection {
     }
 
     fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::TextureView {
-        let hdri_file = if cfg!(target_arch = "wasm32") {
-            "./assets/table_mountain_1_2k.exr"
-        } else {
-            "./assets/table_mountain_1_8k.exr"
-        };
+        let hdri_file = "./assets/table_mountain_1_8k.exr";
 
         let (size, hdri_bytes) = Connection::load_image(hdri_file);
 
@@ -280,7 +262,7 @@ impl Connection {
                 aspect: wgpu::TextureAspect::All,
             },
             // Get the raw bytes to the float vector
-            unsafe { &*std::ptr::slice_from_raw_parts(data.as_ptr().cast::<u8>(), data.len() * 4) },
+            data.as_bytes(),
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(4 * size.0),

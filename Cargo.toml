@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Arlo Blythe"]
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 # The window just doesn't open with opt-level = 0
 # No clue why
 
@@ -19,7 +16,7 @@ opt-level = 2
 [dependencies]
 egui-latest_wgpu_backend = "0.18.0"
 egui = "0.18.1"
-# egui-winit = "0.18.0"
+egui-winit = "0.18.0"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 wgpu = { version = "0.12.0", features = ["spirv"] }
@@ -30,142 +27,3 @@ winit = "0.26.1"
 image = { version = "0.24.1", default-features = false, features = ["openexr"] }
 uuid = { version = "1.0.0", features = ["v4"] }
 
-# Arboard has no clipboard support on web
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.18.0", default-features = true }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-uuid = { version = "1.0.0", features = ["v4", "js"] }
-wgpu = { version = "0.12.0", features = ["spirv", "wgc", "webgl"] }
-egui_wgpu_backend = { version = "0.17", features = ["web"] }
-egui-winit = { version = "0.18.0", default-features = false }
-wasm-bindgen = "0.2.80"
-console_error_panic_hook = "0.1.7"
-console_log = "0.2.0"
-getrandom = { version = "0.2.6", features = ["js"] }
-wasm-bindgen-futures = "0.4.30"
-web-sys = { version = "0.3.57", features = [
-  "console",
-  "Document",
-  "Navigator",
-  "Node",
-  "NodeList",
-  "Gpu",
-  "GpuAdapter",
-  "GpuAddressMode",
-  "GpuBindGroup",
-  "GpuBindGroupDescriptor",
-  "GpuBindGroupEntry",
-  "GpuBindGroupLayout",
-  "GpuBindGroupLayoutDescriptor",
-  "GpuBindGroupLayoutEntry",
-  "GpuBlendComponent",
-  "GpuBlendFactor",
-  "GpuBlendOperation",
-  "GpuBlendState",
-  "GpuBuffer",
-  "GpuBufferBinding",
-  "GpuBufferBindingLayout",
-  "GpuBufferBindingType",
-  "GpuBufferDescriptor",
-  "GpuBufferUsage",
-  "GpuCanvasContext",
-  "GpuCanvasConfiguration",
-  "GpuColorDict",
-  "GpuColorTargetState",
-  "GpuColorWrite",
-  "GpuCommandBuffer",
-  "GpuCommandBufferDescriptor",
-  "GpuCommandEncoder",
-  "GpuCommandEncoderDescriptor",
-  "GpuCompareFunction",
-  "GpuCompilationInfo",
-  "GpuCompilationMessage",
-  "GpuCompilationMessageType",
-  "GpuComputePassDescriptor",
-  "GpuComputePassEncoder",
-  "GpuComputePipeline",
-  "GpuComputePipelineDescriptor",
-  "GpuCullMode",
-  "GpuDepthStencilState",
-  "GpuDevice",
-  "GpuDeviceDescriptor",
-  "GpuDeviceLostInfo",
-  "GpuDeviceLostReason",
-  "GpuErrorFilter",
-  "GpuExtent3dDict",
-  "GpuFeatureName",
-  "GpuFilterMode",
-  "GpuFragmentState",
-  "GpuFrontFace",
-  "GpuImageCopyBuffer",
-  "GpuImageCopyTexture",
-  "GpuImageDataLayout",
-  "GpuIndexFormat",
-  "GpuLoadOp",
-  "GpuMapMode",
-  "GpuMultisampleState",
-  "GpuObjectDescriptorBase",
-  "GpuOrigin2dDict",
-  "GpuOrigin3dDict",
-  "GpuOutOfMemoryError",
-  "GpuPipelineDescriptorBase",
-  "GpuPipelineLayout",
-  "GpuPipelineLayoutDescriptor",
-  "GpuPipelineStatisticName",
-  "GpuPowerPreference",
-  "GpuPrimitiveState",
-  "GpuPrimitiveTopology",
-  "GpuProgrammableStage",
-  "GpuQuerySet",
-  "GpuQuerySetDescriptor",
-  "GpuQueryType",
-  "GpuQueue",
-  "GpuRenderBundle",
-  "GpuRenderBundleDescriptor",
-  "GpuRenderBundleEncoder",
-  "GpuRenderBundleEncoderDescriptor",
-  "GpuRenderPassColorAttachment",
-  "GpuRenderPassDepthStencilAttachment",
-  "GpuRenderPassDescriptor",
-  "GpuRenderPassEncoder",
-  "GpuRenderPipeline",
-  "GpuRenderPipelineDescriptor",
-  "GpuRequestAdapterOptions",
-  "GpuSampler",
-  "GpuSamplerBindingLayout",
-  "GpuSamplerBindingType",
-  "GpuSamplerDescriptor",
-  "GpuShaderModule",
-  "GpuShaderModuleDescriptor",
-  "GpuShaderStage",
-  "GpuStencilFaceState",
-  "GpuStencilOperation",
-  "GpuStorageTextureAccess",
-  "GpuStorageTextureBindingLayout",
-  "GpuStoreOp",
-  "GpuSupportedFeatures",
-  "GpuSupportedLimits",
-  "GpuTexture",
-  "GpuTextureAspect",
-  "GpuTextureBindingLayout",
-  "GpuTextureDescriptor",
-  "GpuTextureDimension",
-  "GpuTextureFormat",
-  "GpuTextureSampleType",
-  "GpuTextureUsage",
-  "GpuTextureView",
-  "GpuTextureViewDescriptor",
-  "GpuTextureViewDimension",
-  "GpuUncapturedErrorEvent",
-  "GpuUncapturedErrorEventInit",
-  "GpuValidationError",
-  "GpuVertexAttribute",
-  "GpuVertexBufferLayout",
-  "GpuVertexFormat",
-  "GpuVertexState",
-  "GpuVertexStepMode",
-  "HtmlCanvasElement",
-  "OffscreenCanvas",
-  "Window",
-]}

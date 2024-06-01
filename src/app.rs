@@ -55,13 +55,8 @@ impl App {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    // features: wgpu::Features::BUFFER_BINDING_ARRAY,
                     features: wgpu::Features::empty(),
-                    limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
+                    limits: wgpu::Limits::default(),
                 },
                 None,
             )
@@ -228,7 +223,7 @@ impl App {
         let output_frame = match self.surface.get_current_texture() {
             Ok(frame) => frame,
             Err(e) => {
-                crate::utils::log!("Dropped frame with error: {}", e);
+                println!("Dropped frame with error: {}", e);
                 return;
             }
         };

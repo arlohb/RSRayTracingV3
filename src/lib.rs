@@ -12,21 +12,8 @@ use std::sync::{Arc, Mutex};
 
 use ray_tracer::*;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub fn main() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init().expect("Failed to initialize logger");
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        std::env::set_var("RUST_BACKTRACE", "1");
-    }
+    std::env::set_var("RUST_BACKTRACE", "1");
 
     let frame_times = Arc::new(Mutex::new(utils::history::History::new(5_000.)));
     let scene = Arc::new(Mutex::new(Scene::random_sphere_default_config()));
@@ -49,37 +36,12 @@ pub fn main() {
         .build(&event_loop)
         .expect("Failed to create window");
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        pollster::block_on(crate::app::run(
-            event_loop,
-            window,
-            scene,
-            frame_times,
-            fps_limit,
-            initial_render_size,
-        ));
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::platform::web::WindowExtWebSys;
-
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas()))
-                    .ok()
-            })
-            .expect("Failed to append canvas to body");
-
-        wasm_bindgen_futures::spawn_local(crate::app::run(
-            event_loop,
-            window,
-            scene,
-            frame_times,
-            fps_limit,
-            initial_render_size,
-        ));
-    }
+    pollster::block_on(crate::app::run(
+        event_loop,
+        window,
+        scene,
+        frame_times,
+        fps_limit,
+        initial_render_size,
+    ));
 }

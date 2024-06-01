@@ -22,9 +22,6 @@
           xorg.libXi
 
           vulkan-loader
-
-          wasm-pack
-          deno
         ];
 
         package = pkgs.rustPlatform.buildRustPackage {
@@ -43,12 +40,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             (pkgs.rust-bin.fromRustupToolchainFile ./toolchain.toml)
-            # cargo
-            # rustc
             rust-analyzer
-            # clippy
-            # rustfmt
-            # cargo-binutils
           ] ++ deps;
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath deps;
