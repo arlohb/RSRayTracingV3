@@ -20,10 +20,11 @@
           xorg.libXcursor
           xorg.libXrandr
           xorg.libXi
+          libxkbcommon
           cmake
           pkg-config
           fontconfig
-
+          wayland
           vulkan-loader
         ];
 

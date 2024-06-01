@@ -22,7 +22,8 @@ pub fn main() {
     let initial_window_size = (1920u32, 1080u32);
     let initial_render_size = (1000u32, 900u32);
 
-    let event_loop = egui_winit::winit::event_loop::EventLoop::new();
+    let event_loop =
+        egui_winit::winit::event_loop::EventLoop::new().expect("Failed to create event loop");
 
     let window = egui_winit::winit::window::WindowBuilder::new()
         .with_decorations(true)

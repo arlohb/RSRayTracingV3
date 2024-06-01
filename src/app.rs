@@ -85,9 +85,14 @@ impl App {
         /* #endregion */
         /* #region Create the Egui UI */
 
-        let egui_winit_state =
-            egui_winit::State::new(egui::ViewportId::ROOT, window, Some(1.), None);
         let egui_context = egui::Context::default();
+        let egui_winit_state = egui_winit::State::new(
+            egui_context.clone(),
+            egui::ViewportId::ROOT,
+            window,
+            Some(1.),
+            None,
+        );
 
         let ui = crate::Ui::new(scene.clone(), frame_times);
 
@@ -328,40 +333,38 @@ pub async fn run(
     )
     .await;
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        match event {
-            RedrawRequested(..) => {
-                let now = crate::utils::time::now_millis();
-                let elapsed = now - last_time;
-                if elapsed > 1000. / fps_limit {
-                    last_time = now;
-                    if let Ok(mut frame_times) = frame_times.try_lock() {
-                        frame_times.add(elapsed);
+    event_loop
+        .run(move |event, window_target| {
+            window_target.set_control_flow(ControlFlow::Poll);
+            match event {
+                WindowEvent { event, .. } => match event {
+                    egui_winit::winit::event::WindowEvent::RedrawRequested => {
+                        let now = crate::utils::time::now_millis();
+                        let elapsed = now - last_time;
+                        if elapsed > 1000. / fps_limit {
+                            last_time = now;
+                            if let Ok(mut frame_times) = frame_times.try_lock() {
+                                frame_times.add(elapsed);
+                            }
+                            app.render(&window);
+                        }
                     }
-                    app.render(&window);
-                }
+                    egui_winit::winit::event::WindowEvent::Resized(size) => {
+                        app.surface_config.width = size.width;
+                        app.surface_config.height = size.height;
+                        app.surface.configure(&app.device, &app.surface_config);
+                    }
+                    egui_winit::winit::event::WindowEvent::CloseRequested => {
+                        window_target.exit();
+                    }
+                    event => {
+                        // Pass the winit events to the platform integration.
+                        let _ = app.egui_winit_state.on_window_event(&window, &event);
+                    }
+                },
+                AboutToWait => window.request_redraw(),
+                _ => (),
             }
-            MainEventsCleared => {
-                window.request_redraw();
-            }
-            WindowEvent { event, .. } => match event {
-                egui_winit::winit::event::WindowEvent::Resized(size) => {
-                    app.surface_config.width = size.width;
-                    app.surface_config.height = size.height;
-                    app.surface.configure(&app.device, &app.surface_config);
-                }
-                egui_winit::winit::event::WindowEvent::CloseRequested => {
-                    *control_flow = ControlFlow::Exit;
-                }
-                event => {
-                    // Pass the winit events to the platform integration.
-                    let _ = app
-                        .egui_winit_state
-                        .on_window_event(&app.egui_context, &event);
-                }
-            },
-            _ => (),
-        }
-    });
+        })
+        .expect("Event loop failed to run");
 }
