@@ -1,3 +1,18 @@
+pub trait VecExt {
+    fn as_bytes<const N: usize>(&self) -> [u8; N];
+}
+
+impl<const N: usize> VecExt for nalgebra::SVector<f32, N> {
+    fn as_bytes<const M: usize>(&self) -> [u8; M] {
+        bytes_concat_fixed_in_n(
+            &self
+                .row_iter()
+                .map(|f| f.x.to_le_bytes())
+                .collect::<Vec<_>>(),
+        )
+    }
+}
+
 #[must_use]
 pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
     let mut bytes = [0u8; N];

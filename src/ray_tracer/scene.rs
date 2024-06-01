@@ -1,5 +1,5 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{bytes_concat_fixed_in_n, bytes_concat_n, tuple_bytes};
+use crate::utils::bytes::{bytes_concat_fixed_in_n, bytes_concat_n, tuple_bytes, VecExt as _};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -33,33 +33,17 @@ impl Scene {
                     metallic: 1.,
                 },
                 Geometry::Sphere {
-                    center: Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: 0.,
-                    },
+                    center: Vec3::new(0., 0., 0.),
                     radius: 1.,
                 },
             )],
             lights: vec![Light::Point {
                 intensity: (1., 1., 1.),
-                position: Vec3 {
-                    x: 0.,
-                    y: 2.,
-                    z: 0.,
-                },
+                position: Vec3::new(0., 2., 0.),
             }],
             camera: Camera {
-                position: Vec3 {
-                    x: 0.,
-                    y: 0.,
-                    z: -5.,
-                },
-                rotation: Vec3 {
-                    x: 0.,
-                    y: 0.,
-                    z: 0.,
-                },
+                position: Vec3::new(0., 0., -5.),
+                rotation: Vec3::new(0., 0., 0.),
                 fov: 70.,
             },
             background_colour: (0.5, 0.8, 1.),
@@ -100,7 +84,7 @@ impl Scene {
             let [x, y]: [f32; 2] = rand_distr::UnitDisc.sample(&mut rng);
             let x = x * placement_radius;
             let y = y * placement_radius;
-            let position = Vec3 { x, y: radius, z: y };
+            let position = Vec3::new(x, radius, y);
 
             let geometry = Geometry::Sphere {
                 center: position,
@@ -171,7 +155,7 @@ impl Scene {
                                 return false;
                             };
                             let min_dst = radius + other_radius;
-                            (*object.geometry.position() - center).length() < min_dst
+                            (*object.geometry.position() - center).magnitude() < min_dst
                         })
                     } else {
                         false
@@ -192,52 +176,27 @@ impl Scene {
                 roughness: 0.5,
             },
             Geometry::Plane {
-                center: Vec3 {
-                    x: 0.,
-                    y: 0.,
-                    z: 0.,
-                },
-                normal: Vec3 {
-                    x: 0.,
-                    y: 1.,
-                    z: 0.,
-                },
+                center: Vec3::new(0., 0., 0.),
+                normal: Vec3::new(0., 1., 0.),
                 size: 100_000.,
             },
         ));
 
         Self {
             camera: Camera {
-                position: Vec3 {
-                    x: 55.,
-                    y: 65.,
-                    z: 55.,
-                },
-                rotation: Vec3 {
-                    x: 0.8,
-                    y: -0.8,
-                    z: 0.,
-                },
+                position: Vec3::new(55., 65., 55.),
+                rotation: Vec3::new(0.8, -0.8, 0.),
                 fov: 70.,
             },
             objects,
             lights: vec![
                 Light::Direction {
                     intensity: (0.4, 0.4, 0.4),
-                    direction: Vec3 {
-                        x: -1.,
-                        y: -1.5,
-                        z: -0.5,
-                    }
-                    .normalize(),
+                    direction: Vec3::new(-1., -1.5, -0.5).normalize(),
                 },
                 Light::Point {
                     intensity: (0.4, 0.4, 0.4),
-                    position: Vec3 {
-                        x: 0.,
-                        y: 2.,
-                        z: 0.,
-                    },
+                    position: Vec3::new(0., 2., 0.),
                 },
             ],
             background_colour: (0.5, 0.8, 1.),

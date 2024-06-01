@@ -1,4 +1,6 @@
-use super::{Axis, Mat44, Vec3};
+use nalgebra::Rotation3;
+
+use super::Vec3;
 
 /// Stores information about the camera in a scene.
 #[derive(Clone, PartialEq)]
@@ -49,23 +51,12 @@ impl Camera {
     /// The 'fru' stands for forward, right, up as every time its used I need a reminder what order they are in.
     #[must_use]
     pub fn get_vectors_fru(&self) -> (Vec3, Vec3, Vec3) {
-        let forward = Vec3 {
-            x: 0.,
-            y: 0.,
-            z: 1.,
-        }
-        .transform_point(Mat44::create_rotation(Axis::X, -self.rotation.x))
-        .transform_point(Mat44::create_rotation(Axis::Y, -self.rotation.y));
+        let forward = Rotation3::from_euler_angles(-self.rotation.x, -self.rotation.y, 0.)
+            * Vec3::new(0., 0., 1.);
 
-        let temp = Vec3 {
-            x: 0.,
-            y: 1.,
-            z: 0.,
-        }
-        .transform_point(Mat44::create_rotation(Axis::Z, -self.rotation.z));
-        let right = (temp * forward).normalize();
-
-        let up = (forward * right).normalize();
+        let temp = Rotation3::from_euler_angles(0., 0., -self.rotation.z) * Vec3::new(0., 1., 0.);
+        let right = temp.cross(&forward).normalize();
+        let up = forward.cross(&right).normalize();
 
         (forward, right, up)
     }

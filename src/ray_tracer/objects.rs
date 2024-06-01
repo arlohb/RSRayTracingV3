@@ -1,6 +1,6 @@
 use super::Vec3;
 
-use crate::utils::bytes::{bytes_concat_n, tuple_bytes};
+use crate::utils::bytes::{bytes_concat_n, tuple_bytes, VecExt as _};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]

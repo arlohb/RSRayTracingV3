@@ -1,8 +1,9 @@
+use nalgebra::Rotation3;
 use puffin::GlobalFrameView;
 
 use crate::{
     panels::{object_panel, settings_panel},
-    ray_tracer::{Axis, Geometry, Mat44, Scene},
+    ray_tracer::{Geometry, Scene},
     utils::time::now_millis,
 };
 
@@ -53,7 +54,7 @@ impl Ui {
 
         if scene.do_objects_spin {
             let theta: f32 = 0.5 * std::f32::consts::PI * delta_time;
-            let rotation = Mat44::create_rotation(Axis::Y, theta);
+            let rotation = Rotation3::from_euler_angles(0., theta, 0.);
 
             scene.objects.iter_mut().for_each(|object| {
                 if let Geometry::Sphere { .. } = object.geometry {
@@ -62,12 +63,13 @@ impl Ui {
                 }
 
                 let position = object.geometry.position_as_mut();
-                let length = position.length();
+                let length = position.magnitude();
 
-                *position = position.transform_point(rotation);
+                // *position = position.transform_point(rotation);
+                *position = (rotation * *position).xyz();
 
                 // correct for rounding errors
-                *position *= length / position.length();
+                *position *= length / position.magnitude();
             });
         }
 

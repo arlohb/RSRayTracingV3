@@ -14,6 +14,7 @@ opt-level = 2
 opt-level = 2
 
 [dependencies]
+nalgebra = "0.32"
 egui = "0.27"
 egui_plot = "0.27"
 egui-winit = "0.27"

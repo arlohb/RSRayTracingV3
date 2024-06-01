@@ -1,7 +1,10 @@
 use image::{EncodableLayout, GenericImageView};
 use rand::Rng;
 
-use crate::ray_tracer::{Scene, Vec3};
+use crate::{
+    ray_tracer::{Scene, Vec3},
+    utils::bytes::VecExt as _,
+};
 
 pub struct FrameData {
     pub jitter: (f32, f32),
@@ -51,26 +54,10 @@ pub struct Connection {
 impl Connection {
     pub const VERTICES_NUM: usize = 4;
     pub const VERTICES: [Vec3; Self::VERTICES_NUM] = [
-        Vec3 {
-            x: -1.,
-            y: -1.,
-            z: 0.,
-        },
-        Vec3 {
-            x: -1.,
-            y: 1.,
-            z: 0.,
-        },
-        Vec3 {
-            x: 1.,
-            y: 1.,
-            z: 0.,
-        },
-        Vec3 {
-            x: 1.,
-            y: -1.,
-            z: 0.,
-        },
+        Vec3::new(-1., -1., 0.),
+        Vec3::new(-1., 1., 0.),
+        Vec3::new(1., 1., 0.),
+        Vec3::new(1., -1., 0.),
     ];
     pub const INDICES_NUM: usize = 6;
     pub const INDICES: [u16; Self::INDICES_NUM] = [0, 2, 1, 0, 3, 2];
