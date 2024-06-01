@@ -1,17 +1,21 @@
+use puffin::GlobalFrameView;
+
 use crate::{
     panels::{object_panel, settings_panel},
     ray_tracer::{Axis, Geometry, Mat44, Scene},
-    utils::{history::History, time::now_millis},
+    utils::time::now_millis,
 };
 
 pub struct Ui {
     last_time: f64,
+    global_frame_view: GlobalFrameView,
 }
 
 impl Default for Ui {
     fn default() -> Self {
         Self {
             last_time: now_millis(),
+            global_frame_view: GlobalFrameView::default(),
         }
     }
 }
@@ -28,7 +32,6 @@ impl Ui {
         render_target: &mut crate::gpu::RenderTarget,
         device: &wgpu::Device,
         scene: &mut Scene,
-        frame_times: &History,
     ) {
         puffin::profile_function!();
 
@@ -75,7 +78,7 @@ impl Ui {
         egui::SidePanel::right("panel").show(ctx, |ui| {
             ui.columns(2, |cols| {
                 object_panel(&mut cols[0], scene);
-                settings_panel(&mut cols[1], frame_times, scene);
+                settings_panel(&mut cols[1], &self.global_frame_view, scene);
             });
         });
 

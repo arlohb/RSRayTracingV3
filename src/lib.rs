@@ -27,7 +27,6 @@
 
 mod ui;
 pub use ui::Ui;
-use utils::history::History;
 
 pub mod app;
 pub mod gpu;
@@ -46,10 +45,8 @@ pub fn main() {
     #[cfg(debug_assertions)]
     puffin::set_scopes_on(true);
 
-    let frame_times = History::new(5_000.);
     let scene = Scene::random_spheres_default_config();
 
-    let fps_limit = 5000.;
     let initial_window_size = (1920u32, 1080u32);
     let initial_render_size = (1000u32, 900u32);
 
@@ -70,12 +67,5 @@ pub fn main() {
             .expect("Failed to create window"),
     );
 
-    app::run(
-        event_loop,
-        window,
-        scene,
-        frame_times,
-        fps_limit,
-        initial_render_size,
-    );
+    app::run(event_loop, window, scene, initial_render_size);
 }

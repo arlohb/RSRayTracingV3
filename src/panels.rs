@@ -1,8 +1,8 @@
-use crate::{
-    ray_tracer::{Geometry, Object, Scene, Vec3},
-    utils::history::History,
-};
+use std::ops::{Add, Div};
+
+use crate::ray_tracer::{Geometry, Object, Scene, Vec3};
 use egui;
+use puffin::GlobalFrameView;
 
 fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
     ui.horizontal(|ui| {
@@ -150,7 +150,33 @@ pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
         });
 }
 
-pub fn settings_panel(ui: &mut egui::Ui, frame_times: &History, scene: &mut Scene) {
+fn average<T: Default + Add<Output = T> + Div<Output = T> + From<u32>>(
+    iter: impl Iterator<Item = T>,
+) -> T {
+    let mut sum: T = T::default();
+    let mut count = 0u32;
+
+    for i in iter {
+        sum = sum + i;
+        count += 1;
+    }
+
+    if count == 0 {
+        T::default()
+    } else {
+        sum / T::from(count)
+    }
+}
+
+fn ns_to_fps(ns: i64) -> f64 {
+    if ns == 0 {
+        0.
+    } else {
+        1_000_000_000f64 / ns as f64
+    }
+}
+
+pub fn settings_panel(ui: &mut egui::Ui, global_frame_view: &GlobalFrameView, scene: &mut Scene) {
     puffin::profile_function!();
 
     ui.heading("Fps");
@@ -162,33 +188,49 @@ pub fn settings_panel(ui: &mut egui::Ui, frame_times: &History, scene: &mut Scen
         puffin::set_scopes_on(profiling);
     }
 
-    let fps = 1000. / frame_times.average(None);
-    let recent_fps = 1000. / frame_times.average(Some(1000.));
+    let frame_view = global_frame_view.lock();
+    let frames = frame_view
+        .latest_frames(5 /* secs */ * 1000 /* fps guess */)
+        .into_iter()
+        .map(|frame| (frame.clone(), puffin::now_ns() - frame.meta().range_ns.0))
+        .filter(|(_, elapsed)| *elapsed < 5_000_000_000)
+        .collect::<Vec<_>>();
+
+    let fps_1s = ns_to_fps(average(
+        frames
+            .iter()
+            .filter(|(_, elapsed)| *elapsed < 1_000_000_000)
+            .map(|(frame, _)| frame.duration_ns()),
+    ));
+    let fps_5s = ns_to_fps(average(frames.iter().map(|(frame, _)| frame.duration_ns())));
 
     data_row(ui, "5 sec average", |ui| {
-        ui.label(format!("{fps:.1}"));
+        ui.label(format!("{fps_5s:.1}"));
     });
     data_row(ui, "1 sec average", |ui| {
-        ui.label(format!("{recent_fps:.1}"));
+        ui.label(format!("{fps_1s:.1}"));
     });
 
+    let plot_points = frames
+        .iter()
+        .map(|(frame, elapsed)| {
+            [
+                -elapsed as f64 / 1_000_000_000f64,
+                1_000_000_000f64 / frame.duration_ns() as f64,
+            ]
+        })
+        .collect::<Vec<_>>();
+    drop(frame_view);
+
     egui_plot::Plot::new("Fps history")
-        .legend(egui_plot::Legend::default())
+        .x_axis_label("Seconds")
+        .y_axis_label("Fps")
         .height(200.)
         .allow_zoom(false)
         .allow_drag(false)
         .include_y(0.)
         .show(ui, |ui| {
-            ui.line(
-                egui_plot::Line::new(egui_plot::PlotPoints::new(
-                    frame_times
-                        .values(None)
-                        .iter()
-                        .map(|frame| [-frame.age(), 1000. / frame.value])
-                        .collect::<Vec<_>>(),
-                ))
-                .name("Fps history"),
-            );
+            ui.line(egui_plot::Line::new(plot_points).name("Fps history"));
         });
 
     ui.separator();

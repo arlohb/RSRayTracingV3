@@ -5,11 +5,8 @@ use egui_winit::winit::{
 };
 use std::{iter, sync::Arc};
 
+use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
-use crate::{
-    gpu::{Connection, RenderTarget},
-    utils::history::History,
-};
 
 pub struct App {
     surface: wgpu::Surface<'static>,
@@ -18,7 +15,6 @@ pub struct App {
 
     ui: crate::ui::Ui,
     scene: Scene,
-    frame_times: History,
 
     render_pipeline: wgpu::RenderPipeline,
     previous_render_texture: wgpu::Texture,
@@ -38,7 +34,6 @@ impl App {
     pub async fn new(
         window: Arc<egui_winit::winit::window::Window>,
         scene: Scene,
-        frame_times: History,
         initial_render_size: (u32, u32),
     ) -> Self {
         /* #region Initialize the GPU */
@@ -142,7 +137,6 @@ impl App {
 
             ui,
             scene,
-            frame_times,
 
             render_pipeline,
             previous_render_texture,
@@ -232,7 +226,6 @@ impl App {
             &mut self.render_target,
             &self.device,
             &mut self.scene,
-            &self.frame_times,
         );
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
@@ -304,18 +297,9 @@ pub fn run(
     event_loop: egui_winit::winit::event_loop::EventLoop<()>,
     window: Arc<egui_winit::winit::window::Window>,
     scene: Scene,
-    frame_times: History,
-    fps_limit: f64,
     initial_render_size: (u32, u32),
 ) {
-    let mut last_time = crate::utils::time::now_millis();
-
-    let mut app = pollster::block_on(App::new(
-        window.clone(),
-        scene,
-        frame_times,
-        initial_render_size,
-    ));
+    let mut app = pollster::block_on(App::new(window.clone(), scene, initial_render_size));
 
     event_loop
         .run(move |event, window_target| {
@@ -325,13 +309,7 @@ pub fn run(
                     egui_winit::winit::event::WindowEvent::RedrawRequested => {
                         puffin::GlobalProfiler::lock().new_frame();
 
-                        let now = crate::utils::time::now_millis();
-                        let elapsed = now - last_time;
-                        if elapsed > 1000. / fps_limit {
-                            last_time = now;
-                            app.frame_times.add(elapsed);
-                            app.render(&window);
-                        }
+                        app.render(&window);
                     }
                     egui_winit::winit::event::WindowEvent::Resized(size) => {
                         app.surface_config.width = size.width;
