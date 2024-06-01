@@ -1,6 +1,6 @@
 use super::Vec3;
 
-use crate::utils::bytes::{bytes_concat_n, tuple_bytes, VecExt as _};
+use crate::utils::bytes::{bytes_concat_n, tuple_bytes, AsBytes};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]
@@ -35,10 +35,10 @@ impl Default for Material {
 
 impl Material {
     pub const BUFFER_SIZE: usize = 48;
+}
 
-    /// Get the byte representation of the object.
-    #[must_use]
-    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+impl AsBytes<{ Self::BUFFER_SIZE }> for Material {
+    fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
         bytes_concat_n(&[
@@ -98,33 +98,6 @@ impl Geometry {
         }
     }
 
-    /// Get the byte representation of the object.
-    #[must_use]
-    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
-        puffin::profile_function!();
-
-        match self {
-            Self::Sphere { center, radius } => bytes_concat_n(&[
-                &0u32.to_le_bytes(),
-                &[0u8; 12],
-                &center.as_bytes::<16>(),
-                &[0u8; 12],
-                &radius.to_le_bytes(),
-            ]),
-            Self::Plane {
-                center,
-                normal,
-                size,
-            } => bytes_concat_n(&[
-                &1u32.to_le_bytes(),
-                &[0u8; 12],
-                &center.as_bytes::<16>(),
-                &normal.as_bytes::<12>(),
-                &size.to_le_bytes(),
-            ]),
-        }
-    }
-
     /// Gets the position of the object to show in the editor.
     #[must_use]
     pub const fn position(&self) -> &Vec3 {
@@ -137,6 +110,33 @@ impl Geometry {
     pub fn position_as_mut(&mut self) -> &mut Vec3 {
         match self {
             Self::Plane { center, .. } | Self::Sphere { center, .. } => center,
+        }
+    }
+}
+
+impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
+    fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
+        match self {
+            Self::Sphere { center, radius } => bytes_concat_n(&[
+                &0u32.to_le_bytes(),
+                &[0u8; 12],
+                &center.as_bytes() as &[_; 16],
+                &[0u8; 12],
+                &radius.to_le_bytes(),
+            ]),
+            Self::Plane {
+                center,
+                normal,
+                size,
+            } => bytes_concat_n(&[
+                &1u32.to_le_bytes(),
+                &[0u8; 12],
+                &center.as_bytes() as &[_; 16],
+                &normal.as_bytes() as &[_; 12],
+                &size.to_le_bytes(),
+            ]),
         }
     }
 }
@@ -170,14 +170,6 @@ impl Object {
         Self::new("plane", Material::default(), Geometry::default_plane())
     }
 
-    /// Get the byte representation of the object.
-    #[must_use]
-    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
-        puffin::profile_function!();
-
-        bytes_concat_n(&[&self.material.as_bytes(), &self.geometry.as_bytes()])
-    }
-
     /// Creates a new object.
     pub fn new(name: impl Into<String>, material: Material, geometry: Geometry) -> Self {
         Self {
@@ -186,6 +178,14 @@ impl Object {
             material,
             geometry,
         }
+    }
+}
+
+impl AsBytes<{ Self::BUFFER_SIZE }> for Object {
+    fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
+        bytes_concat_n(&[&self.material.as_bytes(), &self.geometry.as_bytes()])
     }
 }
 
@@ -208,10 +208,10 @@ pub enum Light {
 
 impl Light {
     pub const BUFFER_SIZE: usize = 48;
+}
 
-    /// Get the byte representation of the object.
-    #[must_use]
-    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
+    fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
         match self {
@@ -222,7 +222,7 @@ impl Light {
                 &0u32.to_le_bytes(),
                 &[0u8; 12],
                 &tuple_bytes::<16>(*intensity),
-                &direction.as_bytes::<12>(),
+                &direction.as_bytes() as &[_; 12],
             ]),
             Self::Point {
                 intensity,
@@ -231,7 +231,7 @@ impl Light {
                 &1u32.to_le_bytes(),
                 &[0u8; 12],
                 &tuple_bytes::<16>(*intensity),
-                &position.as_bytes::<12>(),
+                &position.as_bytes() as &[_; 12],
             ]),
         }
     }

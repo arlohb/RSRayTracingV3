@@ -1,5 +1,7 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{bytes_concat_fixed_in_n_iter, bytes_concat_n, tuple_bytes, VecExt as _};
+use crate::utils::bytes::{
+    bytes_concat_fixed_in_n_iter, bytes_concat_n, tuple_bytes, AsBytes as _,
+};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -206,6 +208,7 @@ impl Scene {
         }
     }
 
+    // Can't implement `AsBytes` because this maps to 3 separate buffers
     #[must_use]
     pub fn as_bytes(
         &self,
@@ -224,10 +227,10 @@ impl Scene {
             bytes_concat_fixed_in_n_iter(self.objects.iter().map(Object::as_bytes)),
             bytes_concat_fixed_in_n_iter(self.lights.iter().map(Light::as_bytes)),
             bytes_concat_n(&[
-                &self.camera.position.as_bytes::<16>(),
-                &vectors.0.as_bytes::<16>(),
-                &vectors.1.as_bytes::<16>(),
-                &vectors.2.as_bytes::<16>(),
+                &self.camera.position.as_bytes() as &[_; 16],
+                &vectors.0.as_bytes() as &[_; 16],
+                &vectors.1.as_bytes() as &[_; 16],
+                &vectors.2.as_bytes() as &[_; 16],
                 &tuple_bytes::<16>(self.background_colour),
                 &tuple_bytes::<12>(self.ambient_light),
                 &self.camera.fov.to_le_bytes(),

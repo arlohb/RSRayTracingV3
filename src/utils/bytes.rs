@@ -1,11 +1,10 @@
-pub trait VecExt {
-    fn as_bytes<const N: usize>(&self) -> [u8; N];
+pub trait AsBytes<const B: usize> {
+    #[must_use]
+    fn as_bytes(&self) -> [u8; B];
 }
 
-impl<const N: usize> VecExt for nalgebra::SVector<f32, N> {
-    fn as_bytes<const M: usize>(&self) -> [u8; M] {
-        puffin::profile_function!();
-
+impl<const D: usize, const B: usize> AsBytes<B> for nalgebra::SVector<f32, D> {
+    fn as_bytes(&self) -> [u8; B] {
         bytes_concat_fixed_in_n_iter(self.row_iter().map(|f| f.x.to_le_bytes()))
     }
 }

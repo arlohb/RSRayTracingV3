@@ -3,7 +3,7 @@ use rand::Rng;
 
 use crate::{
     ray_tracer::{Scene, Vec3},
-    utils::bytes::VecExt as _,
+    utils::bytes::{bytes_concat_fixed_in_n_iter, bytes_concat_n, AsBytes},
 };
 
 pub struct FrameData {
@@ -21,9 +21,11 @@ impl FrameData {
             progressive_count: 0,
         }
     }
+}
 
-    pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
-        crate::utils::bytes::bytes_concat_n(&[
+impl AsBytes<{ Self::BUFFER_SIZE }> for FrameData {
+    fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        bytes_concat_n(&[
             &self.jitter.0.to_le_bytes(),
             &self.jitter.1.to_le_bytes(),
             &self.progressive_count.to_le_bytes(),
@@ -325,10 +327,9 @@ impl Connection {
     fn create_model_buffers(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer) {
         use wgpu::util::DeviceExt;
 
-        let vertex_bytes = crate::utils::bytes::bytes_concat_fixed_in_n_iter::<
-            16,
-            { Self::VERTICES_NUM * 16 },
-        >(Self::VERTICES.iter().map(Vec3::as_bytes));
+        let vertex_bytes = bytes_concat_fixed_in_n_iter::<16, { Self::VERTICES_NUM * 16 }>(
+            Self::VERTICES.iter().map(AsBytes::as_bytes),
+        );
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -336,10 +337,9 @@ impl Connection {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let index_bytes = crate::utils::bytes::bytes_concat_fixed_in_n_iter::<
-            2,
-            { Self::INDICES_NUM * 2 },
-        >(Self::INDICES.iter().map(|index| index.to_le_bytes()));
+        let index_bytes = bytes_concat_fixed_in_n_iter::<2, { Self::INDICES_NUM * 2 }>(
+            Self::INDICES.iter().map(|index| index.to_le_bytes()),
+        );
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
