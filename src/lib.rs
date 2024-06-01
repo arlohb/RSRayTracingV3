@@ -25,17 +25,19 @@ pub fn main() {
     let event_loop =
         egui_winit::winit::event_loop::EventLoop::new().expect("Failed to create event loop");
 
-    let window = egui_winit::winit::window::WindowBuilder::new()
-        .with_decorations(true)
-        .with_resizable(true)
-        .with_transparent(false)
-        .with_title("Ray Tracer")
-        .with_inner_size(egui_winit::winit::dpi::PhysicalSize {
-            width: initial_window_size.0,
-            height: initial_window_size.1,
-        })
-        .build(&event_loop)
-        .expect("Failed to create window");
+    let window = Arc::new(
+        egui_winit::winit::window::WindowBuilder::new()
+            .with_decorations(true)
+            .with_resizable(true)
+            .with_transparent(false)
+            .with_title("Ray Tracer")
+            .with_inner_size(egui_winit::winit::dpi::PhysicalSize {
+                width: initial_window_size.0,
+                height: initial_window_size.1,
+            })
+            .build(&event_loop)
+            .expect("Failed to create window"),
+    );
 
     pollster::block_on(crate::app::run(
         event_loop,

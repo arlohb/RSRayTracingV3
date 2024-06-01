@@ -14,13 +14,13 @@ opt-level = 2
 opt-level = 2
 
 [dependencies]
-egui = "0.25"
-egui_plot = "0.25"
-egui-winit = "0.25"
-egui-wgpu = "0.25"
+egui = "0.26"
+egui_plot = "0.26"
+egui-winit = "0.26"
+egui-wgpu = "0.26"
 rand = "0.8"
 rand_distr = "0.4"
-wgpu = { version = "0.18", features = ["spirv"] }
+wgpu = { version = "0.19", features = ["spirv"] }
 inline-spirv = "0.2"
 pollster = "0.3"
 num_cpus = "1.16"

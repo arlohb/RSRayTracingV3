@@ -1,4 +1,4 @@
-use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
+use egui_wgpu::{Renderer, ScreenDescriptor};
 use egui_winit::winit::{event::Event::*, event_loop::ControlFlow};
 use std::{
     iter,
@@ -9,7 +9,7 @@ use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
 
 pub struct App {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
 
@@ -31,7 +31,7 @@ pub struct App {
 
 impl App {
     pub async fn new(
-        window: &egui_winit::winit::window::Window,
+        window: Arc<egui_winit::winit::window::Window>,
         scene: Arc<Mutex<Scene>>,
         frame_times: Arc<Mutex<crate::utils::history::History>>,
         initial_render_size: (u32, u32),
@@ -39,11 +39,9 @@ impl App {
         /* #region Initialize the GPU */
 
         let instance = wgpu::Instance::default();
-        let surface = unsafe {
-            instance
-                .create_surface(window)
-                .expect("Failed to create surface")
-        };
+        let surface = instance
+            .create_surface(window.clone())
+            .expect("Failed to create surface");
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -58,8 +56,8 @@ impl App {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 None,
             )
@@ -79,6 +77,7 @@ impl App {
             height: size.height,
             present_mode: wgpu::PresentMode::Mailbox,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &surface_config);
 
@@ -89,7 +88,7 @@ impl App {
         let egui_winit_state = egui_winit::State::new(
             egui_context.clone(),
             egui::ViewportId::ROOT,
-            window,
+            &window,
             Some(1.),
             None,
         );
@@ -317,7 +316,7 @@ impl App {
 
 pub async fn run(
     event_loop: egui_winit::winit::event_loop::EventLoop<()>,
-    window: egui_winit::winit::window::Window,
+    window: Arc<egui_winit::winit::window::Window>,
     scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::utils::history::History>>,
     fps_limit: f64,
@@ -326,7 +325,7 @@ pub async fn run(
     let mut last_time = crate::utils::time::now_millis();
 
     let mut app = App::new(
-        &window,
+        window.clone(),
         scene.clone(),
         frame_times.clone(),
         initial_render_size,
