@@ -213,8 +213,8 @@ impl Connection {
             hdri_bytes.as_slice(),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(16 * size.0),
-                rows_per_image: std::num::NonZeroU32::new(size.1),
+                bytes_per_row: Some(16 * size.0),
+                rows_per_image: Some(size.1),
             },
             texture_size,
         );
@@ -267,8 +267,8 @@ impl Connection {
             data.as_bytes(),
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * size.0),
-                rows_per_image: std::num::NonZeroU32::new(size.1),
+                bytes_per_row: Some(4 * size.0),
+                rows_per_image: Some(size.1),
             },
             self.random_texture_size,
         );

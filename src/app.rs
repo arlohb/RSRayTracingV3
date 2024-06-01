@@ -91,7 +91,6 @@ impl App {
 
         let ui = crate::Ui::new(scene.clone(), frame_times);
 
-        // TODO: Experiment with MSAA
         let egui_renderer = Renderer::new(&device, surface_format, None, 1);
 
         /* #endregion */
@@ -282,7 +281,6 @@ impl App {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_view,
-                    // TODO: Related to multisampling somehow
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),

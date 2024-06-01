@@ -96,7 +96,7 @@ pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
 
     egui::ScrollArea::vertical()
         .id_source("Objects")
-        .always_show_scroll(true)
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
         .show(ui, |ui| {
             let mut has_removed_object = false;
 
