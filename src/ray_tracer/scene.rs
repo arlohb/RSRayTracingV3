@@ -1,5 +1,5 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{bytes_concat_fixed_in_n, bytes_concat_n, tuple_bytes, VecExt as _};
+use crate::utils::bytes::{bytes_concat_fixed_in_n_iter, bytes_concat_n, tuple_bytes, VecExt as _};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -216,23 +216,13 @@ impl Scene {
         [u8; Self::BUFFER_SIZE.1],
         [u8; Self::BUFFER_SIZE.2],
     ) {
+        puffin::profile_function!();
+
         let vectors = self.camera.get_vectors_fru();
 
         (
-            bytes_concat_fixed_in_n(
-                self.objects
-                    .iter()
-                    .map(Object::as_bytes)
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            ),
-            bytes_concat_fixed_in_n(
-                self.lights
-                    .iter()
-                    .map(Light::as_bytes)
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            ),
+            bytes_concat_fixed_in_n_iter(self.objects.iter().map(Object::as_bytes)),
+            bytes_concat_fixed_in_n_iter(self.lights.iter().map(Light::as_bytes)),
             bytes_concat_n(&[
                 &self.camera.position.as_bytes::<16>(),
                 &vectors.0.as_bytes::<16>(),
@@ -251,6 +241,8 @@ impl Scene {
 
 impl PartialEq for Scene {
     fn eq(&self, other: &Self) -> bool {
+        puffin::profile_function!();
+
         (self.camera == other.camera)
             && {
                 if self.objects.len() == other.objects.len() {

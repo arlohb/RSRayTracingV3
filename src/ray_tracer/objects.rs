@@ -39,6 +39,8 @@ impl Material {
     /// Get the byte representation of the object.
     #[must_use]
     pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
         bytes_concat_n(&[
             &tuple_bytes::<16>(self.colour),
             &tuple_bytes::<12>(self.emission),
@@ -99,6 +101,8 @@ impl Geometry {
     /// Get the byte representation of the object.
     #[must_use]
     pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
         match self {
             Self::Sphere { center, radius } => bytes_concat_n(&[
                 &0u32.to_le_bytes(),
@@ -169,6 +173,8 @@ impl Object {
     /// Get the byte representation of the object.
     #[must_use]
     pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
         bytes_concat_n(&[&self.material.as_bytes(), &self.geometry.as_bytes()])
     }
 
@@ -206,6 +212,8 @@ impl Light {
     /// Get the byte representation of the object.
     #[must_use]
     pub fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
+        puffin::profile_function!();
+
         match self {
             Self::Direction {
                 intensity,

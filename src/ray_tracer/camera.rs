@@ -23,6 +23,8 @@ impl Camera {
     ///
     /// This should be called after any manipulation of the rotation.
     pub fn clamp_rotation(&mut self) {
+        puffin::profile_function!();
+
         // x should be clamped between -pi/2 and pi/2
         self.rotation.x = self.rotation.x.clamp(
             (-0.5f32).mul_add(std::f32::consts::PI, 0.01),
@@ -51,6 +53,8 @@ impl Camera {
     /// The 'fru' stands for forward, right, up as every time its used I need a reminder what order they are in.
     #[must_use]
     pub fn get_vectors_fru(&self) -> (Vec3, Vec3, Vec3) {
+        puffin::profile_function!();
+
         let forward = Rotation3::from_euler_angles(-self.rotation.x, -self.rotation.y, 0.)
             * Vec3::new(0., 0., 1.);
 

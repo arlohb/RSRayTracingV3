@@ -4,17 +4,16 @@ pub trait VecExt {
 
 impl<const N: usize> VecExt for nalgebra::SVector<f32, N> {
     fn as_bytes<const M: usize>(&self) -> [u8; M] {
-        bytes_concat_fixed_in_n(
-            &self
-                .row_iter()
-                .map(|f| f.x.to_le_bytes())
-                .collect::<Vec<_>>(),
-        )
+        puffin::profile_function!();
+
+        bytes_concat_fixed_in_n_iter(self.row_iter().map(|f| f.x.to_le_bytes()))
     }
 }
 
 #[must_use]
 pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
+    puffin::profile_function!();
+
     let mut bytes = [0u8; N];
 
     array
@@ -30,23 +29,24 @@ pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
 }
 
 #[must_use]
-pub fn bytes_concat_fixed_in_n<const N: usize, const M: usize>(array: &[[u8; N]]) -> [u8; M] {
+pub fn bytes_concat_fixed_in_n_iter<const N: usize, const M: usize>(
+    iter: impl Iterator<Item = [u8; N]>,
+) -> [u8; M] {
+    puffin::profile_function!();
+
     let mut bytes = [0u8; M];
 
-    array
-        .concat()
-        .as_slice()
-        .iter()
-        .enumerate()
-        .for_each(|(i, byte)| {
-            bytes[i] = *byte;
-        });
+    iter.flatten().enumerate().for_each(|(i, byte)| {
+        bytes[i] = byte;
+    });
 
     bytes
 }
 
 #[must_use]
 pub fn tuple_bytes<const N: usize>(tuple: (f32, f32, f32)) -> [u8; N] {
+    puffin::profile_function!();
+
     bytes_concat_n(&[
         &tuple.0.to_le_bytes(),
         &tuple.1.to_le_bytes(),

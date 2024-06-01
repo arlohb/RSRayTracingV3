@@ -235,6 +235,8 @@ impl Connection {
     }
 
     fn write_random_texture(&self, queue: &wgpu::Queue) {
+        puffin::profile_function!();
+
         let wgpu::Extent3d { width, height, .. } = self.random_texture_size;
         let length = (width * height) as usize;
         let mut data = vec![0f32; length];
@@ -242,26 +244,29 @@ impl Connection {
         let mut rng = rand::thread_rng();
 
         {
-            puffin::profile_scope!("Generate random texture");
+            puffin::profile_scope!("random_gen");
             data.iter_mut().for_each(|v| *v = rng.gen());
         }
 
-        queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &self.random_texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            // Get the raw bytes to the float vector
-            data.as_bytes(),
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * width),
-                rows_per_image: Some(height),
-            },
-            self.random_texture_size,
-        );
+        {
+            puffin::profile_scope!("random_write");
+            queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    texture: &self.random_texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                // Get the raw bytes to the float vector
+                data.as_bytes(),
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * width),
+                    rows_per_image: Some(height),
+                },
+                self.random_texture_size,
+            );
+        }
     }
 
     fn create_buffers(device: &wgpu::Device) -> [wgpu::Buffer; 4] {
@@ -320,14 +325,10 @@ impl Connection {
     fn create_model_buffers(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer) {
         use wgpu::util::DeviceExt;
 
-        let vertex_bytes =
-            crate::utils::bytes::bytes_concat_fixed_in_n::<16, { Self::VERTICES_NUM * 16 }>(
-                Self::VERTICES
-                    .iter()
-                    .map(Vec3::as_bytes)
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            );
+        let vertex_bytes = crate::utils::bytes::bytes_concat_fixed_in_n_iter::<
+            16,
+            { Self::VERTICES_NUM * 16 },
+        >(Self::VERTICES.iter().map(Vec3::as_bytes));
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -335,14 +336,10 @@ impl Connection {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let index_bytes =
-            crate::utils::bytes::bytes_concat_fixed_in_n::<2, { Self::INDICES_NUM * 2 }>(
-                Self::INDICES
-                    .iter()
-                    .map(|index| index.to_le_bytes())
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            );
+        let index_bytes = crate::utils::bytes::bytes_concat_fixed_in_n_iter::<
+            2,
+            { Self::INDICES_NUM * 2 },
+        >(Self::INDICES.iter().map(|index| index.to_le_bytes()));
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
@@ -435,7 +432,7 @@ impl Connection {
         puffin::profile_function!();
 
         if (scene != &self.last_scene) | (size != self.last_size) {
-            puffin::profile_scope!("Serialize new scene");
+            puffin::profile_scope!("serialize_scene");
 
             let (object_bytes, light_bytes, config_bytes) = scene.as_bytes(size.0, size.1);
 
@@ -453,21 +450,27 @@ impl Connection {
 
         self.write_random_texture(queue);
 
-        self.frame_data.jitter = (
-            rand::random::<f32>().mul_add(
-                FrameData::JITTER_STRENGTH,
-                -(FrameData::JITTER_STRENGTH / 2.),
-            ),
-            rand::random::<f32>().mul_add(
-                FrameData::JITTER_STRENGTH,
-                -(FrameData::JITTER_STRENGTH / 2.),
-            ),
-        );
+        {
+            puffin::profile_scope!("jitter_gen");
+            self.frame_data.jitter = (
+                rand::random::<f32>().mul_add(
+                    FrameData::JITTER_STRENGTH,
+                    -(FrameData::JITTER_STRENGTH / 2.),
+                ),
+                rand::random::<f32>().mul_add(
+                    FrameData::JITTER_STRENGTH,
+                    -(FrameData::JITTER_STRENGTH / 2.),
+                ),
+            );
+        }
 
-        queue.write_buffer(
-            &self.frame_data_buffer,
-            0,
-            self.frame_data.as_bytes().as_slice(),
-        );
+        {
+            puffin::profile_scope!("serialize_frame_data");
+            queue.write_buffer(
+                &self.frame_data_buffer,
+                0,
+                self.frame_data.as_bytes().as_slice(),
+            );
+        }
     }
 }

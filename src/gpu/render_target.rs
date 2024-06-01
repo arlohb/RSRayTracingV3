@@ -48,6 +48,8 @@ impl RenderTarget {
     }
 
     pub fn update(&mut self, device: &wgpu::Device, egui_renderer: &mut egui_wgpu::Renderer) {
+        puffin::profile_function!();
+
         match self.id {
             Some(id) => {
                 egui_renderer.update_egui_texture_from_wgpu_texture(
