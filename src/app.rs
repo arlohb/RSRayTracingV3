@@ -31,7 +31,6 @@ pub struct App {
 
 impl App {
     pub async fn new(
-        event_loop: &egui_winit::winit::event_loop::EventLoop<()>,
         window: &egui_winit::winit::window::Window,
         scene: Arc<Mutex<Scene>>,
         frame_times: Arc<Mutex<crate::utils::history::History>>,
@@ -86,7 +85,8 @@ impl App {
         /* #endregion */
         /* #region Create the Egui UI */
 
-        let egui_winit_state = egui_winit::State::new(event_loop);
+        let egui_winit_state =
+            egui_winit::State::new(egui::ViewportId::ROOT, window, Some(1.), None);
         let egui_context = egui::Context::default();
 
         let ui = crate::Ui::new(scene.clone(), frame_times);
@@ -182,16 +182,15 @@ impl App {
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.render_target.render_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                ..Default::default()
             });
 
             rpass.set_pipeline(&self.render_pipeline);
@@ -245,7 +244,9 @@ impl App {
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let output = self.egui_context.end_frame();
-        let paint_jobs = self.egui_context.tessellate(output.shapes);
+        let paint_jobs = self
+            .egui_context
+            .tessellate(output.shapes, self.egui_context.pixels_per_point());
 
         let frame_time = (crate::utils::time::now_millis() - egui_start) / 1000.;
         self.previous_frame_time = Some(frame_time as f32);
@@ -278,16 +279,15 @@ impl App {
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                ..Default::default()
             });
 
             // Record all render passes.
@@ -321,7 +321,6 @@ pub async fn run(
     let mut last_time = crate::utils::time::now_millis();
 
     let mut app = App::new(
-        &event_loop,
         &window,
         scene.clone(),
         frame_times.clone(),
@@ -357,7 +356,9 @@ pub async fn run(
                 }
                 event => {
                     // Pass the winit events to the platform integration.
-                    let _ = app.egui_winit_state.on_event(&app.egui_context, &event);
+                    let _ = app
+                        .egui_winit_state
+                        .on_window_event(&app.egui_context, &event);
                 }
             },
             _ => (),
