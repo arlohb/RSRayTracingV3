@@ -22,14 +22,14 @@ pub fn main() {
     let initial_window_size = (1920u32, 1080u32);
     let initial_render_size = (1000u32, 900u32);
 
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = egui_winit::winit::event_loop::EventLoop::new();
 
-    let window = winit::window::WindowBuilder::new()
+    let window = egui_winit::winit::window::WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(true)
         .with_transparent(false)
         .with_title("Ray Tracer")
-        .with_inner_size(winit::dpi::PhysicalSize {
+        .with_inner_size(egui_winit::winit::dpi::PhysicalSize {
             width: initial_window_size.0,
             height: initial_window_size.1,
         })

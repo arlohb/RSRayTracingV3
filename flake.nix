@@ -20,6 +20,9 @@
           xorg.libXcursor
           xorg.libXrandr
           xorg.libXi
+          cmake
+          pkg-config
+          fontconfig
 
           vulkan-loader
         ];

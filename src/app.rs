@@ -1,9 +1,9 @@
-use egui_latest_wgpu_backend::{RenderPass, ScreenDescriptor};
+use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use egui_winit::winit::{event::Event::*, event_loop::ControlFlow};
 use std::{
     iter,
     sync::{Arc, Mutex},
 };
-use winit::{event::Event::*, event_loop::ControlFlow};
 
 use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
@@ -31,7 +31,8 @@ pub struct App {
 
 impl App {
     pub async fn new(
-        window: &winit::window::Window,
+        event_loop: &egui_winit::winit::event_loop::EventLoop<()>,
+        window: &egui_winit::winit::window::Window,
         scene: Arc<Mutex<Scene>>,
         frame_times: Arc<Mutex<crate::utils::history::History>>,
         initial_render_size: (u32, u32),
@@ -67,9 +68,7 @@ impl App {
         /* #region Initialize the surface */
 
         let size = window.inner_size();
-        let surface_format = surface
-            .get_preferred_format(&adapter)
-            .expect("Surface format not supported");
+        let surface_format = surface.get_supported_formats(&adapter)[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
@@ -82,7 +81,7 @@ impl App {
         /* #endregion */
         /* #region Create the Egui UI */
 
-        let egui_winit_state = egui_winit::State::new(4096, window);
+        let egui_winit_state = egui_winit::State::new(event_loop);
         let egui_context = egui::Context::default();
 
         let ui = crate::Ui::new(scene.clone(), frame_times);
@@ -122,11 +121,11 @@ impl App {
             fragment: Some(wgpu::FragmentState {
                 module: &crate::gpu::frag_shader(&device),
                 entry_point: "fs_main",
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -166,7 +165,7 @@ impl App {
         }
     }
 
-    pub fn render(&mut self, window: &winit::window::Window) {
+    pub fn render(&mut self, window: &egui_winit::winit::window::Window) {
         /* #region Render the scene */
 
         self.connection
@@ -179,14 +178,14 @@ impl App {
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[wgpu::RenderPassColorAttachment {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.render_target.render_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
                         store: true,
                     },
-                }],
+                })],
                 depth_stencil_attachment: None,
             });
 
@@ -254,30 +253,33 @@ impl App {
 
         // Upload all resources for the GPU.
         let screen_descriptor = ScreenDescriptor {
-            physical_width: self.surface_config.width,
-            physical_height: self.surface_config.height,
-            scale_factor: window.scale_factor() as f32,
+            size_in_pixels: [self.surface_config.width, self.surface_config.height],
+            pixels_per_point: 1.,
         };
 
-        self.egui_rpass
-            .add_textures(&self.device, &self.queue, &output.textures_delta)
-            .expect("Failed to add egui textures");
-        self.egui_rpass
-            .remove_textures(output.textures_delta)
-            .expect("Failed to remove egui textures");
+        // Update textures
+        for (texture_id, image_delta) in output.textures_delta.set {
+            self.egui_rpass
+                .update_texture(&self.device, &self.queue, texture_id, &image_delta);
+        }
+
         self.egui_rpass
             .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
 
         // Record all render passes.
-        self.egui_rpass
-            .execute(
-                &mut encoder,
-                &output_view,
-                &paint_jobs,
-                &screen_descriptor,
-                Some(wgpu::Color::BLACK),
-            )
-            .expect("Failed to execute render pass");
+        self.egui_rpass.execute(
+            &mut encoder,
+            &output_view,
+            &paint_jobs,
+            &screen_descriptor,
+            Some(wgpu::Color::BLACK),
+        );
+
+        // Free textures
+        for texture_id in output.textures_delta.free {
+            self.egui_rpass.free_texture(&texture_id);
+        }
+
         // Submit the commands.
         self.queue.submit(iter::once(encoder.finish()));
 
@@ -289,8 +291,8 @@ impl App {
 }
 
 pub async fn run(
-    event_loop: winit::event_loop::EventLoop<()>,
-    window: winit::window::Window,
+    event_loop: egui_winit::winit::event_loop::EventLoop<()>,
+    window: egui_winit::winit::window::Window,
     scene: Arc<Mutex<Scene>>,
     frame_times: Arc<Mutex<crate::utils::history::History>>,
     fps_limit: f64,
@@ -299,6 +301,7 @@ pub async fn run(
     let mut last_time = crate::utils::time::now_millis();
 
     let mut app = App::new(
+        &event_loop,
         &window,
         scene.clone(),
         frame_times.clone(),
@@ -324,12 +327,12 @@ pub async fn run(
                 window.request_redraw();
             }
             WindowEvent { event, .. } => match event {
-                winit::event::WindowEvent::Resized(size) => {
+                egui_winit::winit::event::WindowEvent::Resized(size) => {
                     app.surface_config.width = size.width;
                     app.surface_config.height = size.height;
                     app.surface.configure(&app.device, &app.surface_config);
                 }
-                winit::event::WindowEvent::CloseRequested => {
+                egui_winit::winit::event::WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
                 }
                 event => {

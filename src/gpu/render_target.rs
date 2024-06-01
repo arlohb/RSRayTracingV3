@@ -48,21 +48,22 @@ impl RenderTarget {
     pub fn update(
         &mut self,
         device: &wgpu::Device,
-        egui_rpass: &mut egui_latest_wgpu_backend::RenderPass,
+        egui_rpass: &mut egui_wgpu::renderer::RenderPass,
     ) {
         match self.id {
-            Some(id) => {
-                egui_rpass
-                    .update_egui_texture_from_wgpu_texture(
-                        device,
-                        &self.render_view,
-                        wgpu::FilterMode::Nearest,
-                        id,
-                    )
-                    .unwrap();
+            Some(_) => {
+                // TODO: This is a memory leak
+                // Waiting to upgrade to the version of egui_wgpu
+                // with update_egui_texture_from_wgpu_texture from
+                // this PR: https://github.com/emilk/egui/pull/1981
+                self.id = Some(egui_rpass.register_native_texture(
+                    device,
+                    &self.render_view,
+                    wgpu::FilterMode::Nearest,
+                ));
             }
             None => {
-                self.id = Some(egui_rpass.egui_texture_from_wgpu_texture(
+                self.id = Some(egui_rpass.register_native_texture(
                     device,
                     &self.render_view,
                     wgpu::FilterMode::Nearest,

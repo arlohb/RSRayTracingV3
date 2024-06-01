@@ -210,13 +210,13 @@ pub fn settings_panel(
         .include_y(0.)
         .show(ui, |ui| {
             ui.line(
-                egui::plot::Line::new(egui::plot::Values::from_values(
+                egui::plot::Line::new(egui::plot::PlotPoints::new(
                     frame_times
                         .lock()
                         .unwrap()
                         .values(None)
                         .iter()
-                        .map(|frame| egui::plot::Value::new(-frame.age(), 1000. / frame.value))
+                        .map(|frame| [-frame.age(), 1000. / frame.value])
                         .collect::<Vec<_>>(),
                 ))
                 .name("Fps history"),

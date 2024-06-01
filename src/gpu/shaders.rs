@@ -12,7 +12,7 @@ pub fn vert_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
         entry = "vs_main"
     );
 
-    device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::SpirV(Cow::Borrowed(spirv)),
     })
@@ -29,7 +29,7 @@ pub fn frag_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
         entry = "fs_main"
     );
 
-    device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::SpirV(Cow::Borrowed(spirv)),
     })
