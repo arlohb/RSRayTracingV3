@@ -1,4 +1,4 @@
-use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use egui_winit::winit::{event::Event::*, event_loop::ControlFlow};
 use std::{
     iter,
@@ -24,7 +24,7 @@ pub struct App {
 
     egui_winit_state: egui_winit::State,
     egui_context: egui::Context,
-    egui_rpass: RenderPass,
+    egui_renderer: Renderer,
 
     previous_frame_time: Option<f32>,
 }
@@ -75,6 +75,7 @@ impl App {
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Mailbox,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &surface_config);
 
@@ -86,7 +87,8 @@ impl App {
 
         let ui = crate::Ui::new(scene.clone(), frame_times);
 
-        let egui_rpass = RenderPass::new(&device, surface_format, 1);
+        // TODO: Experiment with MSAA
+        let egui_renderer = Renderer::new(&device, surface_format, None, 1);
 
         /* #endregion */
         /* #region Create the renderer */
@@ -159,7 +161,7 @@ impl App {
 
             egui_winit_state,
             egui_context,
-            egui_rpass,
+            egui_renderer,
 
             previous_frame_time: None,
         }
@@ -214,7 +216,7 @@ impl App {
         self.queue.submit(Some(encoder.finish()));
 
         self.render_target
-            .update(&self.device, &mut self.egui_rpass);
+            .update(&self.device, &mut self.egui_renderer);
 
         /* #endregion */
         /* #region Render the UI */
@@ -259,25 +261,41 @@ impl App {
 
         // Update textures
         for (texture_id, image_delta) in output.textures_delta.set {
-            self.egui_rpass
+            self.egui_renderer
                 .update_texture(&self.device, &self.queue, texture_id, &image_delta);
         }
 
-        self.egui_rpass
-            .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
-
-        // Record all render passes.
-        self.egui_rpass.execute(
+        self.egui_renderer.update_buffers(
+            &self.device,
+            &self.queue,
             &mut encoder,
-            &output_view,
             &paint_jobs,
             &screen_descriptor,
-            Some(wgpu::Color::BLACK),
         );
+
+        {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_view,
+                    // TODO: Related to multisampling somehow
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            // Record all render passes.
+            self.egui_renderer
+                .render(&mut rpass, &paint_jobs, &screen_descriptor);
+        }
 
         // Free textures
         for texture_id in output.textures_delta.free {
-            self.egui_rpass.free_texture(&texture_id);
+            self.egui_renderer.free_texture(&texture_id);
         }
 
         // Submit the commands.
@@ -337,7 +355,7 @@ pub async fn run(
                 }
                 event => {
                     // Pass the winit events to the platform integration.
-                    app.egui_winit_state.on_event(&app.egui_context, &event);
+                    let _ = app.egui_winit_state.on_event(&app.egui_context, &event);
                 }
             },
             _ => (),
