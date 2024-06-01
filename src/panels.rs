@@ -202,15 +202,15 @@ pub fn settings_panel(
         ui.label(format!("{:.1}", recent_fps));
     });
 
-    egui::plot::Plot::new("Fps history")
-        .legend(egui::plot::Legend::default())
+    egui_plot::Plot::new("Fps history")
+        .legend(egui_plot::Legend::default())
         .height(200.)
         .allow_zoom(false)
         .allow_drag(false)
         .include_y(0.)
         .show(ui, |ui| {
             ui.line(
-                egui::plot::Line::new(egui::plot::PlotPoints::new(
+                egui_plot::Line::new(egui_plot::PlotPoints::new(
                     frame_times
                         .lock()
                         .unwrap()

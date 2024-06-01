@@ -81,10 +81,13 @@ impl Ui {
                             render_target.resize(device, size);
                         }
 
-                        ui.image(
+                        ui.image(egui::ImageSource::Texture(egui::load::SizedTexture {
                             id,
-                            [render_target.size.0 as f32, render_target.size.1 as f32],
-                        );
+                            size: egui::Vec2::new(
+                                render_target.size.0 as f32,
+                                render_target.size.1 as f32,
+                            ),
+                        }));
                     })
             });
         }
