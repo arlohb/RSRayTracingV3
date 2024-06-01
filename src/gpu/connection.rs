@@ -279,7 +279,8 @@ impl Connection {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            data.as_bytes(),
+            // Get the raw bytes to the float vector
+            unsafe { &*std::ptr::slice_from_raw_parts(data.as_ptr().cast::<u8>(), data.len() * 4) },
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(4 * size.0),
