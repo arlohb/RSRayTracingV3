@@ -17,12 +17,12 @@ opt-level = 2
 egui = "0.19"
 egui-winit = "0.19"
 egui-wgpu = "0.19"
-rand = "0.8.5"
-rand_distr = "0.4.3"
+rand = "0.8"
+rand_distr = "0.4"
 wgpu = { version = "0.13", features = ["spirv"] }
-inline-spirv = "0.1.4"
-pollster = "0.2.5"
-num_cpus = "1.13.1"
-image = { version = "0.24.1", default-features = false, features = ["openexr"] }
-uuid = { version = "1.0.0", features = ["v4"] }
+inline-spirv = "0.2"
+pollster = "0.3"
+num_cpus = "1.16"
+image = { version = "0.25", default-features = false, features = ["exr"] }
+uuid = { version = "1.8", features = ["v4"] }
 
