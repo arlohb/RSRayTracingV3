@@ -20,10 +20,15 @@ pub fn bytes_concat<'a, const N: usize>(iter: impl Iterator<Item = &'a [u8]>) ->
     puffin::profile_function!();
 
     let mut bytes = [0u8; N];
+    let mut offset = 0;
 
-    iter.flatten().enumerate().for_each(|(i, byte)| {
-        bytes[i] = *byte;
-    });
+    for input in iter {
+        unsafe {
+            let dst = bytes.as_mut_ptr().byte_add(offset);
+            std::ptr::copy(input.as_ptr(), dst, input.len());
+            offset += input.len();
+        }
+    }
 
     bytes
 }
@@ -36,9 +41,12 @@ pub fn bytes_concat_owned<const N: usize, const M: usize>(
 
     let mut bytes = [0u8; M];
 
-    iter.flatten().enumerate().for_each(|(i, byte)| {
-        bytes[i] = byte;
-    });
+    for (offset, input) in iter.enumerate() {
+        unsafe {
+            let dst = bytes.as_mut_ptr().cast::<[u8; N]>().add(offset);
+            std::ptr::write(dst, input);
+        }
+    }
 
     bytes
 }
