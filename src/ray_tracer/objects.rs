@@ -136,7 +136,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
                 &[0u8; 12],
                 &center.as_bytes(),
                 &[0u8; 4],
-                &normal.as_bytes() as &[_; 12],
+                &normal.as_bytes(),
                 &size.to_le_bytes(),
             ]),
         }
@@ -219,7 +219,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
                 &[0u8; 12],
                 &intensity.as_bytes(),
                 &[0u8; 4],
-                &direction.as_bytes() as &[_; 12],
+                &direction.as_bytes(),
             ]),
             Self::Point {
                 intensity,
@@ -229,7 +229,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
                 &[0u8; 12],
                 &intensity.as_bytes(),
                 &[0u8; 4],
-                &position.as_bytes() as &[_; 12],
+                &position.as_bytes(),
             ]),
         }
     }
