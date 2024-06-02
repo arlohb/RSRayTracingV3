@@ -224,23 +224,26 @@ impl Scene {
         (
             bytes_concat_fixed_in_n_iter(self.objects.iter().map(Object::as_bytes)),
             bytes_concat_fixed_in_n_iter(self.lights.iter().map(Light::as_bytes)),
-            bytes_concat_n(&[
-                &self.camera.position.as_bytes(),
-                &[0u8; 4],
-                &vectors.0.as_bytes(),
-                &[0u8; 4],
-                &vectors.1.as_bytes(),
-                &[0u8; 4],
-                &vectors.2.as_bytes(),
-                &[0u8; 4],
-                &self.background_colour.as_bytes(),
-                &[0u8; 4],
-                &self.ambient_light.as_bytes(),
-                &self.camera.fov.to_le_bytes(),
-                &self.reflection_limit.to_le_bytes(),
-                &width.to_le_bytes(),
-                &height.to_le_bytes(),
-            ]),
+            bytes_concat_n(
+                [
+                    &self.camera.position.as_bytes(),
+                    [0u8; 4].as_slice(),
+                    &vectors.0.as_bytes(),
+                    &[0u8; 4],
+                    &vectors.1.as_bytes(),
+                    &[0u8; 4],
+                    &vectors.2.as_bytes(),
+                    &[0u8; 4],
+                    &self.background_colour.as_bytes(),
+                    &[0u8; 4],
+                    &self.ambient_light.as_bytes(),
+                    &self.camera.fov.to_le_bytes(),
+                    &self.reflection_limit.to_le_bytes(),
+                    &width.to_le_bytes(),
+                    &height.to_le_bytes(),
+                ]
+                .into_iter(),
+            ),
         )
     }
 }

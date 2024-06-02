@@ -26,10 +26,13 @@ impl FrameData {
 
 impl AsBytes<{ Self::BUFFER_SIZE }> for FrameData {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
-        bytes_concat_n(&[
-            &self.jitter.as_bytes(),
-            &self.progressive_count.to_le_bytes(),
-        ])
+        bytes_concat_n(
+            [
+                &self.jitter.as_bytes(),
+                self.progressive_count.to_le_bytes().as_slice(),
+            ]
+            .into_iter(),
+        )
     }
 }
 
@@ -329,7 +332,7 @@ impl Connection {
 
         let vertex_bytes = Self::VERTICES
             .iter()
-            .flat_map(|v| bytes_concat_n::<16>(&[&v.as_bytes(), &[0u8; 4]]))
+            .flat_map(|v| bytes_concat_n::<16>([&v.as_bytes(), [0u8; 4].as_slice()].into_iter()))
             .collect::<Vec<_>>();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

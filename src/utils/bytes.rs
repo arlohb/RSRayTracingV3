@@ -16,19 +16,14 @@ impl AsBytes<8> for nalgebra::Vector2<f32> {
 }
 
 #[must_use]
-pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
+pub fn bytes_concat_n<'a, const N: usize>(iter: impl Iterator<Item = &'a [u8]>) -> [u8; N] {
     puffin::profile_function!();
 
     let mut bytes = [0u8; N];
 
-    array
-        .concat()
-        .as_slice()
-        .iter()
-        .enumerate()
-        .for_each(|(i, byte)| {
-            bytes[i] = *byte;
-        });
+    iter.flatten().enumerate().for_each(|(i, byte)| {
+        bytes[i] = *byte;
+    });
 
     bytes
 }

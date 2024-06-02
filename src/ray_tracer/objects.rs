@@ -41,14 +41,17 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Material {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
-        bytes_concat_n(&[
-            &self.colour.as_bytes(),
-            &[0u8; 4],
-            &self.emission.as_bytes(),
-            &self.emission_strength.to_le_bytes(),
-            &self.metallic.to_le_bytes(),
-            &self.roughness.to_le_bytes(),
-        ])
+        bytes_concat_n(
+            [
+                &self.colour.as_bytes(),
+                [0u8; 4].as_slice(),
+                &self.emission.as_bytes(),
+                &self.emission_strength.to_le_bytes(),
+                &self.metallic.to_le_bytes(),
+                &self.roughness.to_le_bytes(),
+            ]
+            .into_iter(),
+        )
     }
 }
 
@@ -120,25 +123,31 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
         puffin::profile_function!();
 
         match self {
-            Self::Sphere { center, radius } => bytes_concat_n(&[
-                &0u32.to_le_bytes(),
-                &[0u8; 12],
-                &center.as_bytes(),
-                &[0u8; 16],
-                &radius.to_le_bytes(),
-            ]),
+            Self::Sphere { center, radius } => bytes_concat_n(
+                [
+                    &0u32.to_le_bytes(),
+                    [0u8; 12].as_slice(),
+                    &center.as_bytes(),
+                    &[0u8; 16],
+                    &radius.to_le_bytes(),
+                ]
+                .into_iter(),
+            ),
             Self::Plane {
                 center,
                 normal,
                 size,
-            } => bytes_concat_n(&[
-                &1u32.to_le_bytes(),
-                &[0u8; 12],
-                &center.as_bytes(),
-                &[0u8; 4],
-                &normal.as_bytes(),
-                &size.to_le_bytes(),
-            ]),
+            } => bytes_concat_n(
+                [
+                    &1u32.to_le_bytes(),
+                    [0u8; 12].as_slice(),
+                    &center.as_bytes(),
+                    &[0u8; 4],
+                    &normal.as_bytes(),
+                    &size.to_le_bytes(),
+                ]
+                .into_iter(),
+            ),
         }
     }
 }
@@ -187,7 +196,13 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Object {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
-        bytes_concat_n(&[&self.material.as_bytes(), &self.geometry.as_bytes()])
+        bytes_concat_n(
+            [
+                &self.material.as_bytes(),
+                self.geometry.as_bytes().as_slice(),
+            ]
+            .into_iter(),
+        )
     }
 }
 
@@ -214,23 +229,29 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
             Self::Direction {
                 intensity,
                 direction,
-            } => bytes_concat_n(&[
-                &0u32.to_le_bytes(),
-                &[0u8; 12],
-                &intensity.as_bytes(),
-                &[0u8; 4],
-                &direction.as_bytes(),
-            ]),
+            } => bytes_concat_n(
+                [
+                    &0u32.to_le_bytes(),
+                    [0u8; 12].as_slice(),
+                    &intensity.as_bytes(),
+                    &[0u8; 4],
+                    &direction.as_bytes(),
+                ]
+                .into_iter(),
+            ),
             Self::Point {
                 intensity,
                 position,
-            } => bytes_concat_n(&[
-                &1u32.to_le_bytes(),
-                &[0u8; 12],
-                &intensity.as_bytes(),
-                &[0u8; 4],
-                &position.as_bytes(),
-            ]),
+            } => bytes_concat_n(
+                [
+                    &1u32.to_le_bytes(),
+                    [0u8; 12].as_slice(),
+                    &intensity.as_bytes(),
+                    &[0u8; 4],
+                    &position.as_bytes(),
+                ]
+                .into_iter(),
+            ),
         }
     }
 }
