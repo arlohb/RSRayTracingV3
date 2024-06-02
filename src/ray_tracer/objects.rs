@@ -122,8 +122,8 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
             Self::Sphere { center, radius } => bytes_concat_n(&[
                 &0u32.to_le_bytes(),
                 &[0u8; 12],
-                &center.as_bytes() as &[_; 16],
-                &[0u8; 12],
+                &center.as_bytes(),
+                &[0u8; 16],
                 &radius.to_le_bytes(),
             ]),
             Self::Plane {
@@ -133,7 +133,8 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
             } => bytes_concat_n(&[
                 &1u32.to_le_bytes(),
                 &[0u8; 12],
-                &center.as_bytes() as &[_; 16],
+                &center.as_bytes(),
+                &[0u8; 4],
                 &normal.as_bytes() as &[_; 12],
                 &size.to_le_bytes(),
             ]),

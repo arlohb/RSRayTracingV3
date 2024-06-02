@@ -3,9 +3,9 @@ pub trait AsBytes<const B: usize> {
     fn as_bytes(&self) -> [u8; B];
 }
 
-impl<const D: usize, const B: usize> AsBytes<B> for nalgebra::SVector<f32, D> {
-    fn as_bytes(&self) -> [u8; B] {
-        bytes_concat_fixed_in_n_iter(self.row_iter().map(|f| f.x.to_le_bytes()))
+impl AsBytes<12> for nalgebra::Vector3<f32> {
+    fn as_bytes(&self) -> [u8; 12] {
+        unsafe { std::mem::transmute(self.data) }
     }
 }
 

@@ -327,9 +327,10 @@ impl Connection {
     fn create_model_buffers(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer) {
         use wgpu::util::DeviceExt;
 
-        let vertex_bytes = bytes_concat_fixed_in_n_iter::<16, { Self::VERTICES_NUM * 16 }>(
-            Self::VERTICES.iter().map(AsBytes::as_bytes),
-        );
+        let vertex_bytes = Self::VERTICES
+            .iter()
+            .flat_map(|v| bytes_concat_n::<16>(&[&v.as_bytes(), &[0u8; 4]]))
+            .collect::<Vec<_>>();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
