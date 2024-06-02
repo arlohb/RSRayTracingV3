@@ -1,6 +1,5 @@
 use image::{EncodableLayout, GenericImageView};
 use nalgebra::Vector2;
-use rand::Rng;
 
 use crate::{
     ray_tracer::{Scene, Vec3},
@@ -246,11 +245,11 @@ impl Connection {
         let length = (width * height) as usize;
         let mut data = vec![0f32; length];
 
-        let mut rng = rand::thread_rng();
+        let mut rng = fastrand::Rng::new();
 
         {
             puffin::profile_scope!("random_gen");
-            data.iter_mut().for_each(|v| *v = rng.gen());
+            data.iter_mut().for_each(|v| *v = rng.f32());
         }
 
         {
