@@ -1,4 +1,5 @@
 use image::{EncodableLayout, GenericImageView};
+use nalgebra::Vector2;
 use rand::Rng;
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
 };
 
 pub struct FrameData {
-    pub jitter: (f32, f32),
+    pub jitter: Vector2<f32>,
     pub progressive_count: u32,
 }
 
@@ -15,7 +16,7 @@ impl FrameData {
     const BUFFER_SIZE: usize = 16;
     const JITTER_STRENGTH: f32 = 0.99;
 
-    pub const fn new(jitter: (f32, f32)) -> Self {
+    pub const fn new(jitter: Vector2<f32>) -> Self {
         Self {
             jitter,
             progressive_count: 0,
@@ -26,8 +27,7 @@ impl FrameData {
 impl AsBytes<{ Self::BUFFER_SIZE }> for FrameData {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         bytes_concat_n(&[
-            &self.jitter.0.to_le_bytes(),
-            &self.jitter.1.to_le_bytes(),
+            &self.jitter.as_bytes(),
             &self.progressive_count.to_le_bytes(),
         ])
     }
@@ -414,7 +414,7 @@ impl Connection {
 
             last_scene: scene.clone(),
             last_size: (0, 0),
-            frame_data: FrameData::new((0., 0.)),
+            frame_data: FrameData::new(Vector2::zeros()),
 
             objects,
             lights,
@@ -453,15 +453,13 @@ impl Connection {
 
         {
             puffin::profile_scope!("jitter_gen");
-            self.frame_data.jitter = (
-                rand::random::<f32>().mul_add(
-                    FrameData::JITTER_STRENGTH,
-                    -(FrameData::JITTER_STRENGTH / 2.),
-                ),
-                rand::random::<f32>().mul_add(
-                    FrameData::JITTER_STRENGTH,
-                    -(FrameData::JITTER_STRENGTH / 2.),
-                ),
+            self.frame_data.jitter.x = rand::random::<f32>().mul_add(
+                FrameData::JITTER_STRENGTH,
+                -(FrameData::JITTER_STRENGTH / 2.),
+            );
+            self.frame_data.jitter.y = rand::random::<f32>().mul_add(
+                FrameData::JITTER_STRENGTH,
+                -(FrameData::JITTER_STRENGTH / 2.),
             );
         }
 

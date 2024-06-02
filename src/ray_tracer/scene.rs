@@ -1,7 +1,5 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{
-    bytes_concat_fixed_in_n_iter, bytes_concat_n, tuple_bytes, AsBytes as _,
-};
+use crate::utils::bytes::{bytes_concat_fixed_in_n_iter, bytes_concat_n, AsBytes as _};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -11,8 +9,8 @@ pub struct Scene {
     pub camera: Camera,
     pub objects: Vec<Object>,
     pub lights: Vec<Light>,
-    pub background_colour: (f32, f32, f32),
-    pub ambient_light: (f32, f32, f32),
+    pub background_colour: Vec3,
+    pub ambient_light: Vec3,
     pub reflection_limit: u32,
     pub do_objects_spin: bool,
 }
@@ -28,8 +26,8 @@ impl Scene {
             objects: vec![Object::new(
                 "Sphere",
                 Material {
-                    colour: (1., 0., 0.),
-                    emission: (0., 0., 0.),
+                    colour: Vec3::new(1., 0., 0.),
+                    emission: Vec3::new(0., 0., 0.),
                     emission_strength: 0.,
                     roughness: 0.5,
                     metallic: 1.,
@@ -40,7 +38,7 @@ impl Scene {
                 },
             )],
             lights: vec![Light::Point {
-                intensity: (1., 1., 1.),
+                intensity: Vec3::new(1., 1., 1.),
                 position: Vec3::new(0., 2., 0.),
             }],
             camera: Camera {
@@ -48,8 +46,8 @@ impl Scene {
                 rotation: Vec3::new(0., 0., 0.),
                 fov: 70.,
             },
-            background_colour: (0.5, 0.8, 1.),
-            ambient_light: (0.2, 0.2, 0.2),
+            background_colour: Vec3::new(0.5, 0.8, 1.),
+            ambient_light: Vec3::new(0.2, 0.2, 0.2),
             reflection_limit: 4,
             do_objects_spin: false,
         }
@@ -95,15 +93,15 @@ impl Scene {
 
             if is_valid(&geometry) {
                 let material = Material {
-                    colour: (rng.gen(), rng.gen(), rng.gen()),
+                    colour: Vec3::new(rng.gen(), rng.gen(), rng.gen()),
                     emission: [
-                        (1., 1., 1.),
-                        (1., 0., 0.),
-                        (1., 1., 0.),
-                        (0., 1., 0.),
-                        (0., 1., 1.),
-                        (0., 0., 1.),
-                        (1., 0., 1.),
+                        Vec3::new(1., 1., 1.),
+                        Vec3::new(1., 0., 0.),
+                        Vec3::new(1., 1., 0.),
+                        Vec3::new(0., 1., 0.),
+                        Vec3::new(0., 1., 1.),
+                        Vec3::new(0., 0., 1.),
+                        Vec3::new(1., 0., 1.),
                     ][rng.gen_range(0..7)],
                     emission_strength: if rng.gen::<f32>() > 0.85 {
                         rng.gen_range(5.0..=15.)
@@ -171,8 +169,8 @@ impl Scene {
         objects.push(Object::new(
             "Plane",
             Material {
-                colour: (0.5, 0.5, 0.5),
-                emission: (0., 0., 0.),
+                colour: Vec3::new(0.5, 0.5, 0.5),
+                emission: Vec3::new(0., 0., 0.),
                 emission_strength: 0.,
                 metallic: 0.2,
                 roughness: 0.5,
@@ -193,16 +191,16 @@ impl Scene {
             objects,
             lights: vec![
                 Light::Direction {
-                    intensity: (0.4, 0.4, 0.4),
+                    intensity: Vec3::new(0.4, 0.4, 0.4),
                     direction: Vec3::new(-1., -1.5, -0.5).normalize(),
                 },
                 Light::Point {
-                    intensity: (0.4, 0.4, 0.4),
+                    intensity: Vec3::new(0.4, 0.4, 0.4),
                     position: Vec3::new(0., 2., 0.),
                 },
             ],
-            background_colour: (0.5, 0.8, 1.),
-            ambient_light: (0.2, 0.2, 0.2),
+            background_colour: Vec3::new(0.5, 0.8, 1.),
+            ambient_light: Vec3::new(0.2, 0.2, 0.2),
             reflection_limit: 3,
             do_objects_spin: false,
         }
@@ -235,8 +233,9 @@ impl Scene {
                 &[0u8; 4],
                 &vectors.2.as_bytes(),
                 &[0u8; 4],
-                &tuple_bytes::<16>(self.background_colour),
-                &tuple_bytes::<12>(self.ambient_light),
+                &self.background_colour.as_bytes(),
+                &[0u8; 4],
+                &self.ambient_light.as_bytes(),
                 &self.camera.fov.to_le_bytes(),
                 &self.reflection_limit.to_le_bytes(),
                 &width.to_le_bytes(),

@@ -1,16 +1,16 @@
 use super::Vec3;
 
-use crate::utils::bytes::{bytes_concat_n, tuple_bytes, AsBytes};
+use crate::utils::bytes::{bytes_concat_n, AsBytes};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]
 pub struct Material {
     /// The albedo colour.
     /// RGB from 0..1.
-    pub colour: (f32, f32, f32),
+    pub colour: Vec3,
     /// The emissive colour.
     /// RGB from 0..1.
-    pub emission: (f32, f32, f32),
+    pub emission: Vec3,
     /// The emission strength.
     pub emission_strength: f32,
     /// How much of the object's colour is a reflection of the environment.
@@ -24,8 +24,8 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
-            colour: (1., 0., 0.),
-            emission: (0., 0., 0.),
+            colour: Vec3::new(1., 0., 0.),
+            emission: Vec3::new(0., 0., 0.),
             emission_strength: 0.,
             metallic: 0.5,
             roughness: 0.5,
@@ -42,8 +42,9 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Material {
         puffin::profile_function!();
 
         bytes_concat_n(&[
-            &tuple_bytes::<16>(self.colour),
-            &tuple_bytes::<12>(self.emission),
+            &self.colour.as_bytes(),
+            &[0u8; 4],
+            &self.emission.as_bytes(),
             &self.emission_strength.to_le_bytes(),
             &self.metallic.to_le_bytes(),
             &self.roughness.to_le_bytes(),
@@ -197,14 +198,8 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Object {
 /// - Point
 #[derive(Clone, PartialEq)]
 pub enum Light {
-    Direction {
-        intensity: (f32, f32, f32),
-        direction: Vec3,
-    },
-    Point {
-        intensity: (f32, f32, f32),
-        position: Vec3,
-    },
+    Direction { intensity: Vec3, direction: Vec3 },
+    Point { intensity: Vec3, position: Vec3 },
 }
 
 impl Light {
@@ -222,7 +217,8 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
             } => bytes_concat_n(&[
                 &0u32.to_le_bytes(),
                 &[0u8; 12],
-                &tuple_bytes::<16>(*intensity),
+                &intensity.as_bytes(),
+                &[0u8; 4],
                 &direction.as_bytes() as &[_; 12],
             ]),
             Self::Point {
@@ -231,7 +227,8 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
             } => bytes_concat_n(&[
                 &1u32.to_le_bytes(),
                 &[0u8; 12],
-                &tuple_bytes::<16>(*intensity),
+                &intensity.as_bytes(),
+                &[0u8; 4],
                 &position.as_bytes() as &[_; 12],
             ]),
         }

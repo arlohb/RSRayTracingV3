@@ -24,7 +24,7 @@ fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
     });
 }
 
-fn colour_widget(ui: &mut egui::Ui, input: &mut (f32, f32, f32)) {
+fn colour_widget(ui: &mut egui::Ui, input: &mut Vec3) {
     let mut colour = (*input).into();
     ui.color_edit_button_rgb(&mut colour);
     *input = colour.into();

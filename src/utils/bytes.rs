@@ -9,6 +9,12 @@ impl AsBytes<12> for nalgebra::Vector3<f32> {
     }
 }
 
+impl AsBytes<8> for nalgebra::Vector2<f32> {
+    fn as_bytes(&self) -> [u8; 8] {
+        unsafe { std::mem::transmute(self.data) }
+    }
+}
+
 #[must_use]
 pub fn bytes_concat_n<const N: usize>(array: &[&[u8]]) -> [u8; N] {
     puffin::profile_function!();
@@ -40,17 +46,6 @@ pub fn bytes_concat_fixed_in_n_iter<const N: usize, const M: usize>(
     });
 
     bytes
-}
-
-#[must_use]
-pub fn tuple_bytes<const N: usize>(tuple: (f32, f32, f32)) -> [u8; N] {
-    puffin::profile_function!();
-
-    bytes_concat_n(&[
-        &tuple.0.to_le_bytes(),
-        &tuple.1.to_le_bytes(),
-        &tuple.2.to_le_bytes(),
-    ])
 }
 
 #[must_use]
