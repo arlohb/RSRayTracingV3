@@ -1,5 +1,5 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{bytes_concat_fixed_in_n_iter, bytes_concat_n, AsBytes as _};
+use crate::utils::bytes::{bytes_concat, bytes_concat_owned, AsBytes as _};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
@@ -222,9 +222,9 @@ impl Scene {
         let vectors = self.camera.get_vectors_fru();
 
         (
-            bytes_concat_fixed_in_n_iter(self.objects.iter().map(Object::as_bytes)),
-            bytes_concat_fixed_in_n_iter(self.lights.iter().map(Light::as_bytes)),
-            bytes_concat_n(
+            bytes_concat_owned(self.objects.iter().map(Object::as_bytes)),
+            bytes_concat_owned(self.lights.iter().map(Light::as_bytes)),
+            bytes_concat(
                 [
                     &self.camera.position.as_bytes(),
                     [0u8; 4].as_slice(),

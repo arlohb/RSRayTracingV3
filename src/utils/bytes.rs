@@ -16,7 +16,7 @@ impl AsBytes<8> for nalgebra::Vector2<f32> {
 }
 
 #[must_use]
-pub fn bytes_concat_n<'a, const N: usize>(iter: impl Iterator<Item = &'a [u8]>) -> [u8; N] {
+pub fn bytes_concat<'a, const N: usize>(iter: impl Iterator<Item = &'a [u8]>) -> [u8; N] {
     puffin::profile_function!();
 
     let mut bytes = [0u8; N];
@@ -29,7 +29,7 @@ pub fn bytes_concat_n<'a, const N: usize>(iter: impl Iterator<Item = &'a [u8]>) 
 }
 
 #[must_use]
-pub fn bytes_concat_fixed_in_n_iter<const N: usize, const M: usize>(
+pub fn bytes_concat_owned<const N: usize, const M: usize>(
     iter: impl Iterator<Item = [u8; N]>,
 ) -> [u8; M] {
     puffin::profile_function!();

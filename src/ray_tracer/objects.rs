@@ -1,6 +1,6 @@
 use super::Vec3;
 
-use crate::utils::bytes::{bytes_concat_n, AsBytes};
+use crate::utils::bytes::{bytes_concat, AsBytes};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]
@@ -41,7 +41,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Material {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
-        bytes_concat_n(
+        bytes_concat(
             [
                 &self.colour.as_bytes(),
                 [0u8; 4].as_slice(),
@@ -123,7 +123,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
         puffin::profile_function!();
 
         match self {
-            Self::Sphere { center, radius } => bytes_concat_n(
+            Self::Sphere { center, radius } => bytes_concat(
                 [
                     &0u32.to_le_bytes(),
                     [0u8; 12].as_slice(),
@@ -137,7 +137,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Geometry {
                 center,
                 normal,
                 size,
-            } => bytes_concat_n(
+            } => bytes_concat(
                 [
                     &1u32.to_le_bytes(),
                     [0u8; 12].as_slice(),
@@ -196,7 +196,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Object {
     fn as_bytes(&self) -> [u8; Self::BUFFER_SIZE] {
         puffin::profile_function!();
 
-        bytes_concat_n(
+        bytes_concat(
             [
                 &self.material.as_bytes(),
                 self.geometry.as_bytes().as_slice(),
@@ -229,7 +229,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
             Self::Direction {
                 intensity,
                 direction,
-            } => bytes_concat_n(
+            } => bytes_concat(
                 [
                     &0u32.to_le_bytes(),
                     [0u8; 12].as_slice(),
@@ -242,7 +242,7 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Light {
             Self::Point {
                 intensity,
                 position,
-            } => bytes_concat_n(
+            } => bytes_concat(
                 [
                     &1u32.to_le_bytes(),
                     [0u8; 12].as_slice(),
