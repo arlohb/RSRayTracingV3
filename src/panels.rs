@@ -232,7 +232,7 @@ pub fn settings_panel(
     egui_plot::Plot::new("Fps history")
         .x_axis_label("Seconds")
         .y_axis_label("Fps")
-        .height(200.)
+        .height(400.)
         .allow_zoom(false)
         .allow_drag(false)
         .include_y(0.)
