@@ -6,6 +6,8 @@ use crate::{
     utils::bytes::{bytes_concat, bytes_concat_owned, AsBytes},
 };
 
+use super::RandomTexture;
+
 pub struct FrameData {
     pub jitter: Vector2<f32>,
     pub progressive_count: u32,
@@ -48,8 +50,7 @@ pub struct Connection {
     pub config: wgpu::Buffer,
     pub frame_data_buffer: wgpu::Buffer,
 
-    pub random_texture: wgpu::Texture,
-    pub random_texture_size: wgpu::Extent3d,
+    pub random_texture: RandomTexture,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -213,66 +214,6 @@ impl Connection {
         texture.create_view(&wgpu::TextureViewDescriptor::default())
     }
 
-    fn create_random_texture(
-        device: &wgpu::Device,
-    ) -> (wgpu::Texture, wgpu::TextureView, wgpu::Extent3d) {
-        let texture_size = wgpu::Extent3d {
-            width: 600,
-            height: 600,
-            depth_or_array_layers: 1,
-        };
-
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("random_texture"),
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R32Float,
-            view_formats: &[wgpu::TextureFormat::R32Float],
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        });
-
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        (texture, texture_view, texture_size)
-    }
-
-    fn write_random_texture(&self, queue: &wgpu::Queue) {
-        puffin::profile_function!();
-
-        let wgpu::Extent3d { width, height, .. } = self.random_texture_size;
-        let length = (width * height) as usize;
-        let mut data = vec![0f32; length];
-
-        let mut rng = fastrand::Rng::new();
-
-        {
-            puffin::profile_scope!("random_gen");
-            data.iter_mut().for_each(|v| *v = rng.f32());
-        }
-
-        {
-            puffin::profile_scope!("random_write");
-            queue.write_texture(
-                wgpu::ImageCopyTexture {
-                    texture: &self.random_texture,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                },
-                // Get the raw bytes to the float vector
-                data.as_bytes(),
-                wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * width),
-                    rows_per_image: Some(height),
-                },
-                self.random_texture_size,
-            );
-        }
-    }
-
     fn create_buffers(device: &wgpu::Device) -> [wgpu::Buffer; 4] {
         let objects = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -362,8 +303,7 @@ impl Connection {
     ) -> Self {
         let sampler = Self::create_sampler(device);
         let hdri_texture_view = Self::load_hdri(device, queue);
-        let (random_texture, random_texture_view, random_texture_size) =
-            Self::create_random_texture(device);
+        let random_texture = RandomTexture::new(device);
 
         let [objects, lights, config, frame_data_buffer] = Self::create_buffers(device);
 
@@ -399,7 +339,7 @@ impl Connection {
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
-                    resource: wgpu::BindingResource::TextureView(&random_texture_view),
+                    resource: wgpu::BindingResource::TextureView(&random_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,
@@ -424,7 +364,6 @@ impl Connection {
             frame_data_buffer,
 
             random_texture,
-            random_texture_size,
 
             vertex_buffer,
             index_buffer,
@@ -451,7 +390,7 @@ impl Connection {
             self.frame_data.progressive_count += 1;
         }
 
-        self.write_random_texture(queue);
+        self.random_texture.write(queue);
 
         {
             puffin::profile_scope!("jitter_gen");
