@@ -176,7 +176,12 @@ fn ns_to_fps(ns: i64) -> f64 {
     }
 }
 
-pub fn settings_panel(ui: &mut egui::Ui, global_frame_view: &GlobalFrameView, scene: &mut Scene) {
+pub fn settings_panel(
+    ui: &mut egui::Ui,
+    global_frame_view: &GlobalFrameView,
+    show_profiler: &mut bool,
+    scene: &mut Scene,
+) {
     puffin::profile_function!();
 
     ui.heading("Fps");
@@ -187,6 +192,8 @@ pub fn settings_panel(ui: &mut egui::Ui, global_frame_view: &GlobalFrameView, sc
     if profiling != profiling_old {
         puffin::set_scopes_on(profiling);
     }
+
+    ui.checkbox(show_profiler, "Show profiler");
 
     let frame_view = global_frame_view.lock();
     let frames = frame_view

@@ -10,6 +10,7 @@ use crate::{
 pub struct Ui {
     last_time: f64,
     global_frame_view: GlobalFrameView,
+    show_profiler: bool,
 }
 
 impl Default for Ui {
@@ -17,6 +18,7 @@ impl Default for Ui {
         Self {
             last_time: now_millis(),
             global_frame_view: GlobalFrameView::default(),
+            show_profiler: true,
         }
     }
 }
@@ -73,14 +75,19 @@ impl Ui {
             });
         }
 
-        if puffin::are_scopes_on() {
+        if puffin::are_scopes_on() && self.show_profiler {
             puffin_egui::profiler_window(ctx);
         }
 
         egui::SidePanel::right("panel").show(ctx, |ui| {
             ui.columns(2, |cols| {
                 object_panel(&mut cols[0], scene);
-                settings_panel(&mut cols[1], &self.global_frame_view, scene);
+                settings_panel(
+                    &mut cols[1],
+                    &self.global_frame_view,
+                    &mut self.show_profiler,
+                    scene,
+                );
             });
         });
 
