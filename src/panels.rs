@@ -250,7 +250,7 @@ pub fn settings_panel(
     });
 
     data_row(ui, "bounces", |ui| {
-        ui.add(egui::DragValue::new(&mut scene.reflection_limit).clamp_range::<u32>(2..=10));
+        ui.add(egui::DragValue::new(&mut scene.reflection_limit).clamp_range::<u32>(2..=20));
     });
 
     data_row(ui, "fov", |ui| {
