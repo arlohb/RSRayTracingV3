@@ -76,7 +76,7 @@ impl Ui {
         }
 
         if puffin::are_scopes_on() && self.show_profiler {
-            puffin_egui::profiler_window(ctx);
+            self.show_profiler = puffin_egui::profiler_window(ctx);
         }
 
         egui::SidePanel::right("settings_panel")
