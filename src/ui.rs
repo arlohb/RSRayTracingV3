@@ -79,16 +79,14 @@ impl Ui {
             puffin_egui::profiler_window(ctx);
         }
 
-        egui::SidePanel::right("panel").show(ctx, |ui| {
-            ui.columns(2, |cols| {
-                object_panel(&mut cols[0], scene);
-                settings_panel(
-                    &mut cols[1],
-                    &self.global_frame_view,
-                    &mut self.show_profiler,
-                    scene,
-                );
+        egui::SidePanel::right("settings_panel")
+            .default_width(400.)
+            .show(ctx, |ui| {
+                settings_panel(ui, &self.global_frame_view, &mut self.show_profiler, scene);
             });
+
+        egui::SidePanel::right("object_panel").show(ctx, |ui| {
+            object_panel(ui, scene);
         });
 
         if let Some(id) = render_target.id {
