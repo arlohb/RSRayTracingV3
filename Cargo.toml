@@ -30,4 +30,5 @@ pollster = "0.3"
 num_cpus = "1.16"
 image = { version = "0.25", default-features = false, features = ["exr"] }
 uuid = { version = "1.8", features = ["v4"] }
+anyhow = "1.0"
 

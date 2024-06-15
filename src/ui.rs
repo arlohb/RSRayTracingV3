@@ -1,3 +1,4 @@
+use anyhow::Result;
 use nalgebra::Rotation3;
 use puffin::GlobalFrameView;
 
@@ -13,20 +14,13 @@ pub struct Ui {
     show_profiler: bool,
 }
 
-impl Default for Ui {
-    fn default() -> Self {
-        Self {
-            last_time: now_millis(),
+impl Ui {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            last_time: now_millis()?,
             global_frame_view: GlobalFrameView::default(),
             show_profiler: true,
-        }
-    }
-}
-
-impl Ui {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+        })
     }
 
     pub fn update(
@@ -35,10 +29,10 @@ impl Ui {
         render_target: &mut crate::gpu::RenderTarget,
         device: &wgpu::Device,
         scene: &mut Scene,
-    ) {
+    ) -> Result<()> {
         puffin::profile_function!();
 
-        let now = now_millis();
+        let now = now_millis()?;
         // delta_time is in seconds
         let delta_time = (now - self.last_time) as f32 / 1000.;
         self.last_time = now;
@@ -110,5 +104,7 @@ impl Ui {
                     });
             });
         }
+
+        Ok(())
     }
 }

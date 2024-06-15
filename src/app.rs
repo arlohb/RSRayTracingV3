@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use egui_wgpu::{Renderer, ScreenDescriptor};
 use egui_winit::winit::{
     event::Event::{AboutToWait, WindowEvent},
@@ -36,26 +37,23 @@ impl App {
         window: Arc<egui_winit::winit::window::Window>,
         scene: Scene,
         initial_render_size: (u32, u32),
-    ) -> Self {
+    ) -> Result<Self> {
         /* #region Initialize the GPU */
 
         let instance = wgpu::Instance::default();
-        let surface = instance
-            .create_surface(window.clone())
-            .expect("Failed to create surface");
+        let surface = instance.create_surface(window.clone())?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 compatible_surface: Some(&surface),
                 ..Default::default()
             })
             .await
-            .expect("Failed to find an appropriate adapter");
+            .context("Failed to find an appropriate adapter")?;
 
         // Create the logical device and command queue
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default(), None)
-            .await
-            .expect("Failed to create device");
+            .await?;
 
         let queue = Arc::new(queue);
 
@@ -88,7 +86,7 @@ impl App {
             None,
         );
 
-        let ui = crate::Ui::new();
+        let ui = crate::Ui::new()?;
         let egui_renderer = Renderer::new(&device, surface_format, None, 1);
 
         /* #endregion */
@@ -98,7 +96,7 @@ impl App {
         let (previous_render_texture, previous_render_view) =
             RenderTarget::create_render_texture(&device, render_target.size);
 
-        let connection = Connection::new(&scene, &device, queue.clone(), &previous_render_view);
+        let connection = Connection::new(&scene, &device, queue.clone(), &previous_render_view)?;
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[&connection.bind_group_layout],
@@ -133,7 +131,7 @@ impl App {
 
         /* #endregion */
 
-        Self {
+        Ok(Self {
             surface,
             device,
             queue,
@@ -153,10 +151,10 @@ impl App {
             egui_renderer,
 
             previous_frame_time: None,
-        }
+        })
     }
 
-    pub fn render(&mut self, window: &egui_winit::winit::window::Window) {
+    pub fn render(&mut self, window: &egui_winit::winit::window::Window) -> Result<()> {
         puffin::profile_function!();
 
         /* #region Render the scene */
@@ -212,7 +210,7 @@ impl App {
             Ok(frame) => frame,
             Err(e) => {
                 println!("Dropped frame with error: {e}");
-                return;
+                return Ok(());
             }
         };
         let output_view = output_frame
@@ -220,7 +218,7 @@ impl App {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Begin to draw the UI frame.
-        let egui_start = crate::utils::time::now_millis();
+        let egui_start = crate::utils::time::now_millis()?;
         let input = self.egui_winit_state.take_egui_input(window);
         self.egui_context.begin_frame(input);
 
@@ -229,7 +227,7 @@ impl App {
             &mut self.render_target,
             &self.device,
             &mut self.scene,
-        );
+        )?;
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let output = self.egui_context.end_frame();
@@ -237,7 +235,7 @@ impl App {
             .egui_context
             .tessellate(output.shapes, self.egui_context.pixels_per_point());
 
-        let frame_time = (crate::utils::time::now_millis() - egui_start) / 1000.;
+        let frame_time = (crate::utils::time::now_millis()? - egui_start) / 1000.;
         self.previous_frame_time = Some(frame_time as f32);
 
         let mut encoder = self
@@ -293,6 +291,8 @@ impl App {
         output_frame.present();
 
         /* #endregion */
+
+        Ok(())
     }
 }
 
@@ -301,35 +301,38 @@ pub fn run(
     window: Arc<egui_winit::winit::window::Window>,
     scene: Scene,
     initial_render_size: (u32, u32),
-) {
-    let mut app = pollster::block_on(App::new(window.clone(), scene, initial_render_size));
+) -> Result<()> {
+    let mut app = pollster::block_on(App::new(window.clone(), scene, initial_render_size))?;
 
-    event_loop
-        .run(move |event, window_target| {
-            window_target.set_control_flow(ControlFlow::Poll);
-            match event {
-                WindowEvent { event, .. } => match event {
-                    egui_winit::winit::event::WindowEvent::RedrawRequested => {
-                        puffin::GlobalProfiler::lock().new_frame();
+    event_loop.run(move |event, window_target| {
+        window_target.set_control_flow(ControlFlow::Poll);
+        match event {
+            WindowEvent { event, .. } => match event {
+                egui_winit::winit::event::WindowEvent::RedrawRequested => {
+                    puffin::GlobalProfiler::lock().new_frame();
 
-                        app.render(&window);
+                    match app.render(&window) {
+                        Ok(()) => (),
+                        Err(error) => eprintln!("Render failed with error: ${error}"),
                     }
-                    egui_winit::winit::event::WindowEvent::Resized(size) => {
-                        app.surface_config.width = size.width;
-                        app.surface_config.height = size.height;
-                        app.surface.configure(&app.device, &app.surface_config);
-                    }
-                    egui_winit::winit::event::WindowEvent::CloseRequested => {
-                        window_target.exit();
-                    }
-                    event => {
-                        // Pass the winit events to the platform integration.
-                        let _ = app.egui_winit_state.on_window_event(&window, &event);
-                    }
-                },
-                AboutToWait => window.request_redraw(),
-                _ => (),
-            }
-        })
-        .expect("Event loop failed to run");
+                }
+                egui_winit::winit::event::WindowEvent::Resized(size) => {
+                    app.surface_config.width = size.width;
+                    app.surface_config.height = size.height;
+                    app.surface.configure(&app.device, &app.surface_config);
+                }
+                egui_winit::winit::event::WindowEvent::CloseRequested => {
+                    window_target.exit();
+                }
+                event => {
+                    // Pass the winit events to the platform integration.
+                    let _ = app.egui_winit_state.on_window_event(&window, &event);
+                }
+            },
+            AboutToWait => window.request_redraw(),
+            _ => (),
+        }
+    })?;
+
+    Ok(())
 }

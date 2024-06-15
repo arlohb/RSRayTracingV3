@@ -1,16 +1,16 @@
 #![warn(
-    // TODO: Enable this
+    // TODO: Add docs
     // missing_docs,
     clippy::unwrap_used,
-    // TODO: Improve error handling
-    // clippy::expect_used,
+    clippy::expect_used,
+    clippy::panic,
     clippy::pedantic,
     clippy::nursery,
     future_incompatible,
 )]
 #![allow(
-    // TODO: Improve error handling
-    clippy::missing_panics_doc,
+    // TODO: Add docs
+    clippy::missing_errors_doc,
     // I understand how rust modules work,
     // so if I do this its on purpose.
     clippy::module_inception,
@@ -35,23 +35,24 @@ pub mod panels;
 pub mod ray_tracer;
 pub mod utils;
 
+use anyhow::Result;
 use std::sync::Arc;
 
 use ray_tracer::Scene;
 
-pub fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
-
+pub fn main() -> Result<()> {
     #[cfg(debug_assertions)]
-    puffin::set_scopes_on(true);
+    {
+        puffin::set_scopes_on(true);
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
 
     let scene = Scene::random_spheres_default_config();
 
     let initial_window_size = (1920u32, 1080u32);
     let initial_render_size = (1000u32, 900u32);
 
-    let event_loop =
-        egui_winit::winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+    let event_loop = egui_winit::winit::event_loop::EventLoop::new()?;
 
     let window = Arc::new(
         egui_winit::winit::window::WindowBuilder::new()
@@ -63,9 +64,8 @@ pub fn main() {
                 width: initial_window_size.0,
                 height: initial_window_size.1,
             })
-            .build(&event_loop)
-            .expect("Failed to create window"),
+            .build(&event_loop)?,
     );
 
-    app::run(event_loop, window, scene, initial_render_size);
+    app::run(event_loop, window, scene, initial_render_size)
 }

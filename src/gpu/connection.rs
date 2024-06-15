@@ -1,7 +1,7 @@
-use std::sync::Arc;
-
+use anyhow::{Context, Result};
 use image::{EncodableLayout, GenericImageView};
 use nalgebra::Vector2;
+use std::sync::Arc;
 
 use crate::{
     ray_tracer::{Scene, Vec3},
@@ -151,14 +151,14 @@ impl Connection {
         })
     }
 
-    fn load_image(file_name: &str) -> ((u32, u32), Vec<u8>) {
+    fn load_image(file_name: &str) -> Result<((u32, u32), Vec<u8>)> {
         let reader = image::io::Reader::open(file_name)
-            .unwrap_or_else(|_| panic!("Can't find image: {file_name}"));
+            .with_context(|| format!("Can't find image: {file_name}"))?;
         let im = reader
             .decode()
-            .unwrap_or_else(|_| panic!("Image invalid format: {file_name}"));
+            .with_context(|| format!("Image invalid format: {file_name}"))?;
 
-        (im.dimensions(), im.into_rgba32f().as_bytes().to_vec())
+        Ok((im.dimensions(), im.into_rgba32f().as_bytes().to_vec()))
     }
 
     fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
@@ -173,10 +173,10 @@ impl Connection {
         })
     }
 
-    fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::TextureView {
+    fn load_hdri(device: &wgpu::Device, queue: &wgpu::Queue) -> Result<wgpu::TextureView> {
         let hdri_file = "./assets/table_mountain_1_8k.exr";
 
-        let (size, hdri_bytes) = Self::load_image(hdri_file);
+        let (size, hdri_bytes) = Self::load_image(hdri_file)?;
 
         let texture_size = wgpu::Extent3d {
             width: size.0,
@@ -211,7 +211,7 @@ impl Connection {
             texture_size,
         );
 
-        texture.create_view(&wgpu::TextureViewDescriptor::default())
+        Ok(texture.create_view(&wgpu::TextureViewDescriptor::default()))
     }
 
     fn create_buffers(device: &wgpu::Device) -> [wgpu::Buffer; 4] {
@@ -294,15 +294,14 @@ impl Connection {
         (vertex_buffer, index_buffer)
     }
 
-    #[must_use]
     pub fn new(
         scene: &Scene,
         device: &wgpu::Device,
         queue: Arc<wgpu::Queue>,
         render_view: &wgpu::TextureView,
-    ) -> Self {
+    ) -> Result<Self> {
         let sampler = Self::create_sampler(device);
-        let hdri_texture_view = Self::load_hdri(device, &queue);
+        let hdri_texture_view = Self::load_hdri(device, &queue)?;
         let random_texture_view = RandomTexture::start(device, queue);
 
         let [objects, lights, config, frame_data_buffer] = Self::create_buffers(device);
@@ -350,7 +349,7 @@ impl Connection {
 
         let (vertex_buffer, index_buffer) = Self::create_model_buffers(device);
 
-        Self {
+        Ok(Self {
             bind_group,
             bind_group_layout,
 
@@ -365,7 +364,7 @@ impl Connection {
 
             vertex_buffer,
             index_buffer,
-        }
+        })
     }
 
     pub fn update_buffers(&mut self, queue: &wgpu::Queue, size: (u32, u32), scene: &Scene) {
