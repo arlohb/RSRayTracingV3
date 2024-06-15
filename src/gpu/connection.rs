@@ -52,8 +52,6 @@ pub struct Connection {
     pub config: wgpu::Buffer,
     pub frame_data_buffer: wgpu::Buffer,
 
-    pub random_texture: Arc<RandomTexture>,
-
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
 }
@@ -300,12 +298,12 @@ impl Connection {
     pub fn new(
         scene: &Scene,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        queue: Arc<wgpu::Queue>,
         render_view: &wgpu::TextureView,
     ) -> Self {
         let sampler = Self::create_sampler(device);
-        let hdri_texture_view = Self::load_hdri(device, queue);
-        let random_texture = RandomTexture::new(device);
+        let hdri_texture_view = Self::load_hdri(device, &queue);
+        let random_texture_view = RandomTexture::start(device, queue);
 
         let [objects, lights, config, frame_data_buffer] = Self::create_buffers(device);
 
@@ -341,7 +339,7 @@ impl Connection {
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
-                    resource: wgpu::BindingResource::TextureView(&random_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&random_texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,
@@ -364,8 +362,6 @@ impl Connection {
             lights,
             config,
             frame_data_buffer,
-
-            random_texture,
 
             vertex_buffer,
             index_buffer,
@@ -391,8 +387,6 @@ impl Connection {
         } else {
             self.frame_data.progressive_count += 1;
         }
-
-        self.random_texture.maybe_write(queue);
 
         {
             puffin::profile_scope!("jitter_gen");

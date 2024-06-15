@@ -1,29 +1,20 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, RwLock,
-    },
-    thread,
-    time::Duration,
-};
+use std::{sync::Arc, thread, time::Duration};
 
 use image::EncodableLayout;
 
 pub struct RandomTexture {
     width: u32,
     height: u32,
-    data: RwLock<Vec<f32>>,
-    needs_write: AtomicBool,
+    data: Vec<f32>,
 
+    queue: Arc<wgpu::Queue>,
     texture: wgpu::Texture,
     size: wgpu::Extent3d,
-
-    pub view: wgpu::TextureView,
 }
 
 impl RandomTexture {
     #[must_use]
-    pub fn new(device: &wgpu::Device) -> Arc<Self> {
+    pub fn start(device: &wgpu::Device, queue: Arc<wgpu::Queue>) -> wgpu::TextureView {
         let width = 600;
         let height = 600;
 
@@ -46,53 +37,45 @@ impl RandomTexture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let this = Self {
+        let mut this = Self {
             width,
             height,
-            data: RwLock::new(Vec::new()),
-            needs_write: AtomicBool::new(true),
+            data: Vec::new(),
 
+            queue,
             texture,
             size,
-
-            view,
         };
 
-        *this.data.write().expect("RwLock poisoned") = this.generate_data();
+        this.generate_data();
+        this.write();
 
-        let this_ref = Arc::new(this);
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(4));
 
-        let this_clone = this_ref.clone();
-        thread::spawn(move || {
-            let this = &this_clone;
-            loop {
-                thread::sleep(Duration::from_millis(4));
-
-                *this.data.write().expect("RwLock poisoned") = this.generate_data();
-                this.needs_write.store(true, Ordering::Relaxed);
-            }
+            this.generate_data();
+            this.write();
         });
 
-        this_ref
+        view
     }
 
-    #[must_use]
-    pub fn generate_data(&self) -> Vec<f32> {
+    pub fn generate_data(&mut self) {
         let length = (self.width * self.height) as usize;
         let mut data = vec![0f32; length];
         let mut rng = fastrand::Rng::new();
 
         data.iter_mut().for_each(|v| *v = rng.f32());
 
-        data
+        self.data = data;
     }
 
-    pub fn write(&self, queue: &wgpu::Queue) {
+    pub fn write(&self) {
         puffin::profile_function!();
 
         let wgpu::Extent3d { width, height, .. } = self.size;
 
-        queue.write_texture(
+        self.queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.texture,
                 mip_level: 0,
@@ -100,7 +83,7 @@ impl RandomTexture {
                 aspect: wgpu::TextureAspect::All,
             },
             // Get the raw bytes to the float vector
-            self.data.read().expect("RwLock poisoned").as_bytes(),
+            self.data.as_bytes(),
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * width),
@@ -108,12 +91,7 @@ impl RandomTexture {
             },
             self.size,
         );
-    }
 
-    pub fn maybe_write(&self, queue: &wgpu::Queue) {
-        if self.needs_write.load(Ordering::Relaxed) {
-            self.write(queue);
-            self.needs_write.store(false, Ordering::Relaxed);
-        }
+        self.queue.submit(std::iter::empty());
     }
 }

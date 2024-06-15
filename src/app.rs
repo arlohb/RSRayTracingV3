@@ -11,7 +11,7 @@ use crate::ray_tracer::Scene;
 pub struct App {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
-    queue: wgpu::Queue,
+    queue: Arc<wgpu::Queue>,
 
     ui: crate::ui::Ui,
     scene: Scene,
@@ -56,6 +56,8 @@ impl App {
             .await
             .expect("Failed to create device");
 
+        let queue = Arc::new(queue);
+
         /* #endregion */
         /* #region Initialize the surface */
 
@@ -95,7 +97,7 @@ impl App {
         let (previous_render_texture, previous_render_view) =
             RenderTarget::create_render_texture(&device, render_target.size);
 
-        let connection = Connection::new(&scene, &device, &queue, &previous_render_view);
+        let connection = Connection::new(&scene, &device, queue.clone(), &previous_render_view);
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[&connection.bind_group_layout],
