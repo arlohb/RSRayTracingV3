@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use image::{EncodableLayout, GenericImageView};
 use nalgebra::Vector2;
 
@@ -50,7 +52,7 @@ pub struct Connection {
     pub config: wgpu::Buffer,
     pub frame_data_buffer: wgpu::Buffer,
 
-    pub random_texture: RandomTexture,
+    pub random_texture: Arc<RandomTexture>,
 
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -390,7 +392,7 @@ impl Connection {
             self.frame_data.progressive_count += 1;
         }
 
-        self.random_texture.write(queue);
+        self.random_texture.maybe_write(queue);
 
         {
             puffin::profile_scope!("jitter_gen");
