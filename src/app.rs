@@ -27,6 +27,7 @@ pub struct App {
     egui_context: egui::Context,
     egui_renderer: Renderer,
 
+    // TODO: This can be removed
     previous_frame_time: Option<f32>,
 }
 
