@@ -2,20 +2,22 @@ use anyhow::{Context, Result};
 use egui_wgpu::{Renderer, ScreenDescriptor};
 use egui_winit::winit::{
     event::Event::{AboutToWait, WindowEvent},
-    event_loop::ControlFlow,
+    event_loop::{ControlFlow, EventLoop},
+    window::Window,
 };
 use std::{iter, sync::Arc};
 
 use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
 
-// TODO: Move everything into here from `app::run` and `main`
 /// The complete app.
 /// Stores all the data and controls nearly everything.
+/// Can't store window and event loop as they can only be on one thread.
 pub struct App {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: Arc<wgpu::Queue>,
+    window: Arc<Window>,
 
     ui: crate::ui::Ui,
     scene: Scene,
@@ -38,11 +40,10 @@ impl App {
     /// # Errors
     ///
     /// WGPU errors.
-    pub async fn new(
-        window: Arc<egui_winit::winit::window::Window>,
-        scene: Scene,
-        initial_render_size: (u32, u32),
-    ) -> Result<Self> {
+    #[allow(clippy::too_many_lines)]
+    pub async fn new(window: Arc<Window>, initial_render_size: (u32, u32)) -> Result<Self> {
+        let scene = Scene::random_spheres_default_config();
+
         /* #region Initialize the GPU */
 
         let instance = wgpu::Instance::default();
@@ -140,6 +141,7 @@ impl App {
             surface,
             device,
             queue,
+            window,
 
             ui,
             scene,
@@ -162,7 +164,7 @@ impl App {
     /// # Errors
     ///
     /// WGPU errors.
-    pub fn render(&mut self, window: &egui_winit::winit::window::Window) -> Result<()> {
+    pub fn render(&mut self) -> Result<()> {
         puffin::profile_function!();
 
         /* #region Render the scene */
@@ -226,7 +228,7 @@ impl App {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Begin to draw the UI frame.
-        let input = self.egui_winit_state.take_egui_input(window);
+        let input = self.egui_winit_state.take_egui_input(&self.window);
         self.egui_context.begin_frame(input);
 
         self.ui.update(
@@ -298,51 +300,62 @@ impl App {
 
         Ok(())
     }
-}
 
-// TODO: Move all this into App
-/// Creates the App, and controls the event loop.
-///
-/// # Errors
-///
-/// An issue with the winit event loop such as an OS issue.
-pub fn run(
-    event_loop: egui_winit::winit::event_loop::EventLoop<()>,
-    window: Arc<egui_winit::winit::window::Window>,
-    scene: Scene,
-    initial_render_size: (u32, u32),
-) -> Result<()> {
-    let mut app = pollster::block_on(App::new(window.clone(), scene, initial_render_size))?;
+    /// Creates the App, and handles the event loop.
+    ///
+    /// # Errors
+    ///
+    /// An issue with the winit event loop such as an OS issue.
+    pub fn run() -> Result<()> {
+        let initial_window_size = (1920u32, 1080u32);
+        let initial_render_size = (1000u32, 900u32);
 
-    event_loop.run(move |event, window_target| {
-        window_target.set_control_flow(ControlFlow::Poll);
-        match event {
-            WindowEvent { event, .. } => match event {
-                egui_winit::winit::event::WindowEvent::RedrawRequested => {
-                    puffin::GlobalProfiler::lock().new_frame();
+        let event_loop = EventLoop::new()?;
+        let window = Arc::new(
+            egui_winit::winit::window::WindowBuilder::new()
+                .with_decorations(true)
+                .with_resizable(true)
+                .with_transparent(false)
+                .with_title("Ray Tracer")
+                .with_inner_size(egui_winit::winit::dpi::PhysicalSize {
+                    width: initial_window_size.0,
+                    height: initial_window_size.1,
+                })
+                .build(&event_loop)?,
+        );
 
-                    match app.render(&window) {
-                        Ok(()) => (),
-                        Err(error) => eprintln!("Render failed with error: {error}"),
+        let mut app = pollster::block_on(Self::new(window, initial_render_size))?;
+
+        event_loop.run(|event, window_target| {
+            window_target.set_control_flow(ControlFlow::Poll);
+            match event {
+                WindowEvent { event, .. } => match event {
+                    egui_winit::winit::event::WindowEvent::RedrawRequested => {
+                        puffin::GlobalProfiler::lock().new_frame();
+
+                        match app.render() {
+                            Ok(()) => (),
+                            Err(error) => eprintln!("Render failed with error: {error}"),
+                        }
                     }
-                }
-                egui_winit::winit::event::WindowEvent::Resized(size) => {
-                    app.surface_config.width = size.width;
-                    app.surface_config.height = size.height;
-                    app.surface.configure(&app.device, &app.surface_config);
-                }
-                egui_winit::winit::event::WindowEvent::CloseRequested => {
-                    window_target.exit();
-                }
-                event => {
-                    // Pass the winit events to the platform integration.
-                    let _ = app.egui_winit_state.on_window_event(&window, &event);
-                }
-            },
-            AboutToWait => window.request_redraw(),
-            _ => (),
-        }
-    })?;
+                    egui_winit::winit::event::WindowEvent::Resized(size) => {
+                        app.surface_config.width = size.width;
+                        app.surface_config.height = size.height;
+                        app.surface.configure(&app.device, &app.surface_config);
+                    }
+                    egui_winit::winit::event::WindowEvent::CloseRequested => {
+                        window_target.exit();
+                    }
+                    event => {
+                        // Pass the winit events to the platform integration.
+                        let _ = app.egui_winit_state.on_window_event(&app.window, &event);
+                    }
+                },
+                AboutToWait => app.window.request_redraw(),
+                _ => (),
+            }
+        })?;
 
-    Ok(())
+        Ok(())
+    }
 }
