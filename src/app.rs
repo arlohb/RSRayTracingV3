@@ -323,7 +323,7 @@ pub fn run(
 
                     match app.render(&window) {
                         Ok(()) => (),
-                        Err(error) => eprintln!("Render failed with error: ${error}"),
+                        Err(error) => eprintln!("Render failed with error: {error}"),
                     }
                 }
                 egui_winit::winit::event::WindowEvent::Resized(size) => {
