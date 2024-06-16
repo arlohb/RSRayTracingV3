@@ -4,8 +4,8 @@ use nalgebra::Vector2;
 use std::sync::Arc;
 
 use crate::{
+    bytes::{bytes_concat, bytes_concat_owned, AsBytes},
     ray_tracer::{Scene, Vec3},
-    utils::bytes::{bytes_concat, bytes_concat_owned, AsBytes},
 };
 
 use super::RandomTexture;

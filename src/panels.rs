@@ -1,7 +1,6 @@
 use std::ops::{Add, Div};
 
 use crate::ray_tracer::{Geometry, Object, Scene, Vec3};
-use egui;
 use puffin::GlobalFrameView;
 
 fn vec3_widget(ui: &mut egui::Ui, vec3: &mut Vec3) {
@@ -41,6 +40,7 @@ fn data_row(
     });
 }
 
+/// The objects panel.
 pub fn object_panel(ui: &mut egui::Ui, scene: &mut Scene) {
     puffin::profile_function!();
 
@@ -176,6 +176,7 @@ fn ns_to_fps(ns: i64) -> f64 {
     }
 }
 
+/// The settings panel.
 pub fn settings_panel(
     ui: &mut egui::Ui,
     global_frame_view: &GlobalFrameView,

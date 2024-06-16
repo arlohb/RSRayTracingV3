@@ -5,9 +5,10 @@ use puffin::GlobalFrameView;
 use crate::{
     panels::{object_panel, settings_panel},
     ray_tracer::{Geometry, Scene},
-    utils::time::now_millis,
+    time::now_millis,
 };
 
+/// The UI state.
 pub struct Ui {
     last_time: f64,
     global_frame_view: GlobalFrameView,
@@ -15,6 +16,11 @@ pub struct Ui {
 }
 
 impl Ui {
+    /// Create the UI state.
+    ///
+    /// # Errors
+    ///
+    /// If current time is before the unix epoch.
     pub fn new() -> Result<Self> {
         Ok(Self {
             last_time: now_millis()?,
@@ -23,6 +29,11 @@ impl Ui {
         })
     }
 
+    /// Render the UI and update the state.
+    ///
+    /// # Errors
+    ///
+    /// If current time is before the unix epoch.
     pub fn update(
         &mut self,
         ctx: &egui::Context,

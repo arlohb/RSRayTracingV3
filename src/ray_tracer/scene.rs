@@ -1,23 +1,44 @@
 use super::{Camera, Geometry, Light, Material, Object, Vec3};
-use crate::utils::bytes::{bytes_concat, bytes_concat_owned, AsBytes as _};
+use crate::bytes::{bytes_concat, bytes_concat_owned, AsBytes as _};
 use rand::{Rng, SeedableRng};
 use rand_distr::Distribution;
 
 /// Stores all the information about a scene
 #[derive(Clone)]
 pub struct Scene {
+    /// The camera
     pub camera: Camera,
+    /// The objects
     pub objects: Vec<Object>,
+    /// The lights
     pub lights: Vec<Light>,
+    /// The background colour
     pub background_colour: Vec3,
+    /// The ambient light
     pub ambient_light: Vec3,
+    /// The bounce limit
     pub reflection_limit: u32,
+    /// Whether objects should spin
     pub do_objects_spin: bool,
 }
 
 impl Scene {
-    pub const BUFFER_SIZE: (usize, usize, usize) =
-        (Object::BUFFER_SIZE * 80, Light::BUFFER_SIZE * 2, 112);
+    // TODO: I don't now why there has to be a maximum
+    /// The max number of objects
+    pub const MAX_OBJECTS: usize = 80;
+    // TODO: I don't now why there has to be a maximum
+    /// The max number of lights
+    pub const MAX_LIGHTS: usize = 2;
+    /// The size in bytes as represented in HLSL
+    pub const CONFIG_SIZE: usize = 112;
+
+    /// The size in bytes as represented in HLSL
+    /// of (objects, lights, config)
+    pub const BUFFER_SIZE: (usize, usize, usize) = (
+        Object::BUFFER_SIZE * Self::MAX_OBJECTS,
+        Light::BUFFER_SIZE * Self::MAX_LIGHTS,
+        Self::CONFIG_SIZE,
+    );
 
     /// Returns a simple scene with a single sphere and light
     #[must_use]
@@ -67,6 +88,9 @@ impl Scene {
         )
     }
 
+    /// Create a random sphere.
+    /// Tries 100 times until a valid one is found,
+    /// otherwise returns [`None`]
     #[must_use]
     pub fn random_sphere<R: Rng>(
         mut rng: &mut R,
@@ -206,7 +230,8 @@ impl Scene {
         }
     }
 
-    // Can't implement `AsBytes` because this maps to 3 separate buffers
+    /// Get the struct represented as bytes, packed with HLSL's rules.
+    /// Can't implement `AsBytes` because this maps to 3 separate buffers.
     #[must_use]
     pub fn as_bytes(
         &self,

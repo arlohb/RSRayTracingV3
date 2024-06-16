@@ -2,6 +2,8 @@ use std::{sync::Arc, thread, time::Duration};
 
 use image::EncodableLayout;
 
+/// Stores a random texture,
+/// which is re-generated and written to the GPU on a separate thread.
 pub struct RandomTexture {
     width: u32,
     height: u32,
@@ -13,6 +15,7 @@ pub struct RandomTexture {
 }
 
 impl RandomTexture {
+    /// Start the thread and return a view to the random texture.
     #[must_use]
     pub fn start(device: &wgpu::Device, queue: Arc<wgpu::Queue>) -> wgpu::TextureView {
         let width = 600;
@@ -60,7 +63,8 @@ impl RandomTexture {
         view
     }
 
-    pub fn generate_data(&mut self) {
+    /// Generate the random data.
+    fn generate_data(&mut self) {
         let length = (self.width * self.height) as usize;
         let mut data = vec![0f32; length];
         let mut rng = fastrand::Rng::new();
@@ -70,7 +74,8 @@ impl RandomTexture {
         self.data = data;
     }
 
-    pub fn write(&self) {
+    /// Write the texture to the GPU
+    fn write(&self) {
         puffin::profile_function!();
 
         let wgpu::Extent3d { width, height, .. } = self.size;

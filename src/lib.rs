@@ -1,16 +1,13 @@
 #![warn(
-    // TODO: Add docs
-    // missing_docs,
+    missing_docs,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
     clippy::pedantic,
     clippy::nursery,
-    future_incompatible,
+    future_incompatible
 )]
 #![allow(
-    // TODO: Add docs
-    clippy::missing_errors_doc,
     // I understand how rust modules work,
     // so if I do this its on purpose.
     clippy::module_inception,
@@ -25,21 +22,25 @@
     clippy::cast_sign_loss,
 )]
 
+//! A GPU ray tracer written in Rust.
+
 mod ui;
 pub use ui::Ui;
 
-pub mod app;
-pub mod gpu;
-pub mod movement;
-pub mod panels;
-pub mod ray_tracer;
-pub mod utils;
+mod app;
+mod bytes;
+mod gpu;
+mod movement;
+mod panels;
+mod ray_tracer;
+mod time;
 
 use anyhow::Result;
 use std::sync::Arc;
 
 use ray_tracer::Scene;
 
+#[allow(missing_docs, clippy::missing_errors_doc)]
 pub fn main() -> Result<()> {
     #[cfg(debug_assertions)]
     {
@@ -47,6 +48,7 @@ pub fn main() -> Result<()> {
         std::env::set_var("RUST_BACKTRACE", "1");
     }
 
+    // TODO: Move all this into App
     let scene = Scene::random_spheres_default_config();
 
     let initial_window_size = (1920u32, 1080u32);

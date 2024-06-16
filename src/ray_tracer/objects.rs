@@ -1,6 +1,6 @@
 use super::Vec3;
 
-use crate::utils::bytes::{bytes_concat, AsBytes};
+use crate::bytes::{bytes_concat, AsBytes};
 
 /// These parameters influence how light interacts with the object.
 #[derive(Clone, PartialEq)]
@@ -34,6 +34,7 @@ impl Default for Material {
 }
 
 impl Material {
+    /// The size in bytes as represented in HLSL
     pub const BUFFER_SIZE: usize = 48;
 }
 
@@ -83,8 +84,10 @@ pub enum Geometry {
 }
 
 impl Geometry {
+    /// The size in bytes as represented in HLSL
     pub const BUFFER_SIZE: usize = 64;
 
+    /// The default sphere with centre 0 and radius 1
     #[must_use]
     pub const fn default_sphere() -> Self {
         Self::Sphere {
@@ -93,6 +96,7 @@ impl Geometry {
         }
     }
 
+    /// The default sphere with centre 0, normal +Y, size 1
     #[must_use]
     pub const fn default_plane() -> Self {
         Self::Plane {
@@ -169,13 +173,16 @@ pub struct Object {
 }
 
 impl Object {
+    /// The size in bytes as represented in HLSL
     pub const BUFFER_SIZE: usize = Material::BUFFER_SIZE + Geometry::BUFFER_SIZE;
 
+    /// The default sphere using [`Material::default`] and [`Geometry::default_sphere`]
     #[must_use]
     pub fn default_sphere() -> Self {
         Self::new("sphere", Material::default(), Geometry::default_sphere())
     }
 
+    /// The default plane using [`Material::default`] and [`Geometry::default_plane`]
     #[must_use]
     pub fn default_plane() -> Self {
         Self::new("plane", Material::default(), Geometry::default_plane())
@@ -213,11 +220,24 @@ impl AsBytes<{ Self::BUFFER_SIZE }> for Object {
 /// - Point
 #[derive(Clone, PartialEq)]
 pub enum Light {
-    Direction { intensity: Vec3, direction: Vec3 },
-    Point { intensity: Vec3, position: Vec3 },
+    /// A direction light
+    Direction {
+        /// How strong the light is in RGB
+        intensity: Vec3,
+        /// The direction the light is facing
+        direction: Vec3,
+    },
+    /// A point light
+    Point {
+        /// How strong the light is in RGB
+        intensity: Vec3,
+        /// The position of the light
+        position: Vec3,
+    },
 }
 
 impl Light {
+    /// The size in bytes as represented in HLSL
     pub const BUFFER_SIZE: usize = 48;
 }
 

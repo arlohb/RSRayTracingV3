@@ -2,6 +2,7 @@ use egui::{InputState, Key};
 
 use crate::ray_tracer::Camera;
 
+/// Update the camera position and rotation based on egui input.
 pub fn move_and_rotate(
     input: &InputState,
     camera: &mut Camera,

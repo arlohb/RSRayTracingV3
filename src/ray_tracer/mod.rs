@@ -1,7 +1,9 @@
+/// An alias for `nalgebra::Vector3<f32>`
 pub type Vec3 = nalgebra::Vector3<f32>;
-pub mod objects;
+
+mod objects;
 pub use objects::*;
-pub mod scene;
+mod scene;
 pub use scene::*;
-pub mod camera;
+mod camera;
 pub use camera::*;

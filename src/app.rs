@@ -9,6 +9,9 @@ use std::{iter, sync::Arc};
 use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
 
+// TODO: Move everything into here from `app::run` and `main`
+/// The complete app.
+/// Stores all the data and controls nearly everything.
 pub struct App {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -33,6 +36,11 @@ pub struct App {
 }
 
 impl App {
+    /// Create a new [`App`].
+    ///
+    /// # Errors
+    ///
+    /// WGPU errors.
     pub async fn new(
         window: Arc<egui_winit::winit::window::Window>,
         scene: Scene,
@@ -154,6 +162,11 @@ impl App {
         })
     }
 
+    /// Render a frame.
+    ///
+    /// # Errors
+    ///
+    /// WGPU errors.
     pub fn render(&mut self, window: &egui_winit::winit::window::Window) -> Result<()> {
         puffin::profile_function!();
 
@@ -218,7 +231,7 @@ impl App {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Begin to draw the UI frame.
-        let egui_start = crate::utils::time::now_millis()?;
+        let egui_start = crate::time::now_millis()?;
         let input = self.egui_winit_state.take_egui_input(window);
         self.egui_context.begin_frame(input);
 
@@ -235,7 +248,7 @@ impl App {
             .egui_context
             .tessellate(output.shapes, self.egui_context.pixels_per_point());
 
-        let frame_time = (crate::utils::time::now_millis()? - egui_start) / 1000.;
+        let frame_time = (crate::time::now_millis()? - egui_start) / 1000.;
         self.previous_frame_time = Some(frame_time as f32);
 
         let mut encoder = self
@@ -296,6 +309,12 @@ impl App {
     }
 }
 
+// TODO: Move all this into App
+/// Creates the App, and controls the event loop.
+///
+/// # Errors
+///
+/// An issue with the winit event loop such as an OS issue.
 pub fn run(
     event_loop: egui_winit::winit::event_loop::EventLoop<()>,
     window: Arc<egui_winit::winit::window::Window>,

@@ -1,6 +1,7 @@
 use inline_spirv::include_spirv;
 use std::borrow::Cow;
 
+/// Load the vertex shader.
 #[must_use]
 pub fn vert_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
     let spirv = include_spirv!(
@@ -19,6 +20,7 @@ pub fn vert_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
     })
 }
 
+/// Load the fragment shader.
 #[must_use]
 pub fn frag_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
     let spirv = include_spirv!(
