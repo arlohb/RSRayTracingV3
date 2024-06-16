@@ -30,9 +30,6 @@ pub struct App {
     egui_winit_state: egui_winit::State,
     egui_context: egui::Context,
     egui_renderer: Renderer,
-
-    // TODO: This can be removed
-    previous_frame_time: Option<f32>,
 }
 
 impl App {
@@ -157,8 +154,6 @@ impl App {
             egui_winit_state,
             egui_context,
             egui_renderer,
-
-            previous_frame_time: None,
         })
     }
 
@@ -231,7 +226,6 @@ impl App {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Begin to draw the UI frame.
-        let egui_start = crate::time::now_millis()?;
         let input = self.egui_winit_state.take_egui_input(window);
         self.egui_context.begin_frame(input);
 
@@ -247,9 +241,6 @@ impl App {
         let paint_jobs = self
             .egui_context
             .tessellate(output.shapes, self.egui_context.pixels_per_point());
-
-        let frame_time = (crate::time::now_millis()? - egui_start) / 1000.;
-        self.previous_frame_time = Some(frame_time as f32);
 
         let mut encoder = self
             .device
