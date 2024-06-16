@@ -1,6 +1,6 @@
 # RSRayTracingV3
 
-A GPU ray tracer written in Rust for both desktop and web.
+A GPU ray tracer written in Rust.
 
 # Running
 
