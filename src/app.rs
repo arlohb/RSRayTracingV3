@@ -10,44 +10,60 @@ use std::{iter, sync::Arc};
 use crate::gpu::{Connection, RenderTarget};
 use crate::ray_tracer::Scene;
 
-/// The complete app.
-/// Stores all the data and controls nearly everything.
-/// Can't store window and event loop as they can only be on one thread.
-pub struct App {
+struct Initial {
+    window: Arc<Window>,
+}
+
+struct GpuSetup {
+    window: Arc<Window>,
     surface: wgpu::Surface<'static>,
+    surface_format: wgpu::TextureFormat,
+    surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: Arc<wgpu::Queue>,
+}
+
+struct UiSetup {
     window: Arc<Window>,
+    surface: wgpu::Surface<'static>,
+    surface_config: wgpu::SurfaceConfiguration,
+    device: wgpu::Device,
+    queue: Arc<wgpu::Queue>,
 
     ui: crate::ui::Ui,
-    scene: Scene,
+    egui_winit_state: egui_winit::State,
+    egui_context: egui::Context,
+    egui_renderer: Renderer,
+}
+
+pub struct App {
+    window: Arc<Window>,
+    surface: wgpu::Surface<'static>,
+    surface_config: wgpu::SurfaceConfiguration,
+    device: wgpu::Device,
+    queue: Arc<wgpu::Queue>,
+
+    ui: crate::ui::Ui,
+    egui_winit_state: egui_winit::State,
+    egui_context: egui::Context,
+    egui_renderer: Renderer,
 
     render_pipeline: wgpu::RenderPipeline,
     previous_render_texture: wgpu::Texture,
     connection: Connection,
     render_target: RenderTarget,
 
-    surface_config: wgpu::SurfaceConfiguration,
-
-    egui_winit_state: egui_winit::State,
-    egui_context: egui::Context,
-    egui_renderer: Renderer,
+    scene: Scene,
 }
 
-impl App {
-    /// Create a new [`App`].
-    ///
-    /// # Errors
-    ///
-    /// WGPU errors.
-    #[allow(clippy::too_many_lines)]
-    pub async fn new(window: Arc<Window>, initial_render_size: (u32, u32)) -> Result<Self> {
-        let scene = Scene::random_spheres_default_config();
+impl Initial {
+    pub fn new(window: Arc<Window>) -> Self {
+        Self { window }
+    }
 
-        /* #region Initialize the GPU */
-
+    pub async fn gpu_setup(self) -> Result<GpuSetup> {
         let instance = wgpu::Instance::default();
-        let surface = instance.create_surface(window.clone())?;
+        let surface = instance.create_surface(self.window.clone())?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 compatible_surface: Some(&surface),
@@ -63,10 +79,7 @@ impl App {
 
         let queue = Arc::new(queue);
 
-        /* #endregion */
-        /* #region Initialize the surface */
-
-        let size = window.inner_size();
+        let size = self.window.inner_size();
         let surface_format = surface.get_capabilities(&adapter).formats[0];
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -80,85 +93,117 @@ impl App {
         };
         surface.configure(&device, &surface_config);
 
-        /* #endregion */
-        /* #region Create the Egui UI */
+        Ok(GpuSetup {
+            window: self.window,
+            surface,
+            surface_format,
+            surface_config,
+            device,
+            queue,
+        })
+    }
+}
 
+impl GpuSetup {
+    pub fn ui_setup(self) -> Result<UiSetup> {
         let egui_context = egui::Context::default();
         let egui_winit_state = egui_winit::State::new(
             egui_context.clone(),
             egui::ViewportId::ROOT,
-            &window,
+            &self.window,
             Some(1.),
             None,
         );
 
         let ui = crate::Ui::new()?;
-        let egui_renderer = Renderer::new(&device, surface_format, None, 1);
+        let egui_renderer = Renderer::new(&self.device, self.surface_format, None, 1);
 
-        /* #endregion */
-        /* #region Create the renderer */
-
-        let render_target = crate::gpu::RenderTarget::new(&device, initial_render_size);
-        let (previous_render_texture, previous_render_view) =
-            RenderTarget::create_render_texture(&device, render_target.size);
-
-        let connection = Connection::new(&scene, &device, queue.clone(), &previous_render_view)?;
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[&connection.bind_group_layout],
-            ..Default::default()
-        });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &crate::gpu::vert_shader(&device),
-                entry_point: "vs_main",
-                buffers: &[Connection::vertex_buffer_layout()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &crate::gpu::frag_shader(&device),
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
-
-        /* #endregion */
-
-        Ok(Self {
-            surface,
-            device,
-            queue,
-            window,
+        Ok(UiSetup {
+            window: self.window,
+            surface: self.surface,
+            surface_config: self.surface_config,
+            device: self.device,
+            queue: self.queue,
 
             ui,
-            scene,
+            egui_winit_state,
+            egui_context,
+            egui_renderer,
+        })
+    }
+}
+
+impl UiSetup {
+    pub fn renderer_setup(self, initial_render_size: (u32, u32), scene: Scene) -> Result<App> {
+        let render_target = crate::gpu::RenderTarget::new(&self.device, initial_render_size);
+        let (previous_render_texture, previous_render_view) =
+            RenderTarget::create_render_texture(&self.device, render_target.size);
+
+        let connection = Connection::new(
+            &scene,
+            &self.device,
+            self.queue.clone(),
+            &previous_render_view,
+        )?;
+
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                bind_group_layouts: &[&connection.bind_group_layout],
+                ..Default::default()
+            });
+
+        let render_pipeline = self
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: None,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &crate::gpu::vert_shader(&self.device),
+                    entry_point: "vs_main",
+                    buffers: &[Connection::vertex_buffer_layout()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &crate::gpu::frag_shader(&self.device),
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+            });
+
+        Ok(App {
+            window: self.window,
+            surface: self.surface,
+            surface_config: self.surface_config,
+            device: self.device,
+            queue: self.queue,
+
+            ui: self.ui,
+            egui_winit_state: self.egui_winit_state,
+            egui_context: self.egui_context,
+            egui_renderer: self.egui_renderer,
 
             render_pipeline,
             previous_render_texture,
             connection,
             render_target,
 
-            surface_config,
-
-            egui_winit_state,
-            egui_context,
-            egui_renderer,
+            scene,
         })
     }
+}
 
+impl App {
     /// Render a frame.
     ///
     /// # Errors
@@ -300,7 +345,9 @@ impl App {
 
         Ok(())
     }
+}
 
+impl App {
     /// Creates the App, and handles the event loop.
     ///
     /// # Errors
@@ -324,7 +371,9 @@ impl App {
                 .build(&event_loop)?,
         );
 
-        let mut app = pollster::block_on(Self::new(window, initial_render_size))?;
+        let mut app = pollster::block_on(Initial::new(window).gpu_setup())?
+            .ui_setup()?
+            .renderer_setup(initial_render_size, Scene::random_spheres_default_config())?;
 
         event_loop.run(|event, window_target| {
             window_target.set_control_flow(ControlFlow::Poll);
