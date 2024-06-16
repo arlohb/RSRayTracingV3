@@ -204,15 +204,9 @@ impl UiSetup {
 }
 
 impl App {
-    /// Render a frame.
-    ///
-    /// # Errors
-    ///
-    /// WGPU errors.
-    pub fn render(&mut self) -> Result<()> {
+    /// Render the ray tracing portion of a frame.
+    fn render_scene(&mut self) {
         puffin::profile_function!();
-
-        /* #region Render the scene */
 
         self.connection
             .update_buffers(&self.queue, self.render_target.size, &self.scene);
@@ -257,9 +251,10 @@ impl App {
 
         self.render_target
             .update(&self.device, &mut self.egui_renderer);
+    }
 
-        /* #endregion */
-        /* #region Render the UI */
+    fn render_ui(&mut self) -> Result<()> {
+        puffin::profile_function!();
 
         let output_frame = match self.surface.get_current_texture() {
             Ok(frame) => frame,
@@ -341,7 +336,19 @@ impl App {
         // Redraw egui
         output_frame.present();
 
-        /* #endregion */
+        Ok(())
+    }
+
+    /// Render a frame.
+    ///
+    /// # Errors
+    ///
+    /// WGPU errors.
+    pub fn render(&mut self) -> Result<()> {
+        puffin::profile_function!();
+
+        self.render_scene();
+        self.render_ui()?;
 
         Ok(())
     }
